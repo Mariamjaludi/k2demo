@@ -19,7 +19,10 @@ export async function POST(
   const session = getSession(id);
 
   if (!session) {
-    return NextResponse.json({ error: "Checkout session not found" }, { status: 404 });
+    return noStoreJson(
+      { error: "Checkout session not found" },
+      404
+    )
   }
 
   if (session.status === "completed") {
@@ -35,14 +38,12 @@ export async function POST(
       202
     )
   }
-
   if (session.status !== "ready_for_complete") {
     return noStoreJson(
       { error: `Cannot complete session with status: ${session.status}` },
       409
-    )
-  );
-}
+    );
+  }
 
   if (!session.customer?.email || !session.shipping?.address) {
     return NextResponse.json(
@@ -61,10 +62,10 @@ export async function POST(
   }
 
   if (paymentMethod !== "mada") {
-    return NextResponse.json(
+    return noStoreJson(
       { error: "Only mada is supported in this demo" },
-      { status: 400 }
-    );
+      400
+    )
   }
 
   const now = new Date();
@@ -88,12 +89,12 @@ export async function POST(
 
   saveSession(updatedSession);
 
-  return NextResponse.json(
+  return noStoreJson(
     {
       session: updatedSession,
       poll_url: `/api/checkout-sessions/${updatedSession.id}`,
       message: "Checkout completion in progress",
     },
-    { status: 202, headers: { "Cache-Control": "no-store" } }
-  );
+    202
+  )
 }

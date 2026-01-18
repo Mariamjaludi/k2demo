@@ -159,3 +159,86 @@ curl -X POST http://localhost:3000/api/checkout-sessions \
   -H "Content-Type: application/json" \
   -d '{"items": [{"product_id": "jarir_a4_copy_paper_500", "quantity": 2}]}'
 ```
+
+#### `GET /api/checkout-sessions/{id}`
+
+Retrieves a checkout session. Automatically flips status from `complete_in_progress` to `completed` when ready.
+
+**Response:**
+```json
+{
+  "session": { ... }
+}
+```
+
+#### `PATCH /api/checkout-sessions/{id}`
+
+Updates a checkout session with customer email and/or shipping address. Status changes to `ready_for_complete` when both are provided.
+
+**Request Body:**
+```json
+{
+  "customer": { "email": "customer@example.com" },
+  "shipping": {
+    "address": {
+      "country": "SA",
+      "city": "Riyadh",
+      "address_line1": "123 Main Street"
+    }
+  }
+}
+```
+
+**Shipping Rules:**
+- Riyadh: 10 SAR shipping, "Deliver tomorrow in Riyadh"
+- Other cities: 20 SAR shipping, "Deliver in 2-3 days"
+- VAT (15%) applies to subtotal + shipping
+
+**Example:**
+```bash
+curl -X PATCH http://localhost:3000/api/checkout-sessions/{id} \
+  -H "Content-Type: application/json" \
+  -d '{"customer":{"email":"test@example.com"},"shipping":{"address":{"country":"SA","city":"Riyadh","address_line1":"123 Main St"}}}'
+```
+
+#### `POST /api/checkout-sessions/{id}/complete`
+
+Initiates checkout completion. Requires session to have email and address, and status must be `ready_for_complete`.
+
+**Request Body:**
+```json
+{
+  "payment_method": "mada"
+}
+```
+
+**Response (202):**
+```json
+{
+  "session": {
+    "status": "complete_in_progress",
+    "order": { "id": "ORD-A1B2C3D4", "created_at": "..." },
+    "completion": { "started_at": "...", "ready_at": "..." }
+  },
+  "poll_url": "/api/checkout-sessions/{id}",
+  "message": "Checkout completion in progress"
+}
+```
+
+Poll `GET /api/checkout-sessions/{id}` after 5 seconds to see `status: "completed"`.
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/checkout-sessions/{id}/complete \
+  -H "Content-Type: application/json" \
+  -d '{"payment_method": "mada"}'
+```
+
+## Checkout Flow Summary
+
+```
+1. POST /api/checkout-sessions          → status: "incomplete"
+2. PATCH /api/checkout-sessions/{id}    → status: "ready_for_complete"
+3. POST /api/checkout-sessions/{id}/complete → status: "complete_in_progress"
+4. GET /api/checkout-sessions/{id}      → status: "completed" (after 5s)
+```

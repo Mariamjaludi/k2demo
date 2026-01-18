@@ -83,9 +83,15 @@ Optional:
 1. `GET /.well-known/ucp` - UCP discovery profile (returns merchant info, capabilities)
 2. `GET /api/products` - Product catalog with search (`?q=`, `?limit=`, `?include_oos=1`)
 3. `POST /api/checkout-sessions` - Create checkout session from product IDs and quantities
+4. `GET /api/checkout-sessions/{id}` - Get session (auto-flips to `completed` when ready)
+5. `PATCH /api/checkout-sessions/{id}` - Update session with customer email and shipping address
+6. `POST /api/checkout-sessions/{id}/complete` - Start checkout completion (requires `payment_method: "mada"`)
 
-### Pending Endpoints
-4. `POST /api/checkout-sessions/{id}/complete` - Complete checkout
+### Checkout Flow
+1. `POST /checkout-sessions` → status: `incomplete`
+2. `PATCH /checkout-sessions/{id}` with email + address → status: `ready_for_complete`
+3. `POST /checkout-sessions/{id}/complete` with payment → status: `complete_in_progress`
+4. `GET /checkout-sessions/{id}` (poll after 5s) → status: `completed`
 
 ### Project Structure
 ```
@@ -94,9 +100,11 @@ lib/
   checkoutSessionStore.ts    # In-memory session storage with types
   data/jarir-catalog.json    # Product catalog (12 items)
 app/
-  .well-known/ucp/route.ts        # Discovery endpoint
-  api/products/route.ts           # Product search endpoint
-  api/checkout-sessions/route.ts  # Checkout session creation
+  .well-known/ucp/route.ts                    # Discovery endpoint
+  api/products/route.ts                       # Product search endpoint
+  api/checkout-sessions/route.ts              # Checkout session creation
+  api/checkout-sessions/[id]/route.ts         # GET and PATCH session
+  api/checkout-sessions/[id]/complete/route.ts # Complete checkout
 ```
 
 ### Simplifications for Demo
