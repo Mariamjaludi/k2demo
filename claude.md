@@ -77,19 +77,28 @@ Optional:
 
 ---
 
-## Merchant API Implementation Plan
+## Merchant API Implementation
 
-For this demo, we'll implement simplified UCP-compliant endpoints:
+### Implemented Endpoints
+1. `GET /.well-known/ucp` - UCP discovery profile (returns merchant info, capabilities)
+2. `GET /api/products` - Product catalog with search (`?q=`, `?limit=`, `?include_oos=1`)
 
-### Endpoints to Build
-1. `GET /.well-known/ucp` - Discovery profile
-2. `GET /api/products?q=` - Product search
+### Pending Endpoints
 3. `POST /api/checkout-sessions` - Create checkout
 4. `POST /api/checkout-sessions/{id}/complete` - Complete checkout
+
+### Project Structure
+```
+lib/
+  ucpProfile.ts          # UCP manifest builder
+  data/jarir-catalog.json # Product catalog (12 items)
+app/
+  .well-known/ucp/route.ts  # Discovery endpoint
+  api/products/route.ts     # Product search endpoint
+```
 
 ### Simplifications for Demo
 - No signature verification (skip `request-signature` validation)
 - Mock payment handling (auto-approve)
-- In-memory or simple storage (no production DB)
-- Basic product catalog (hardcoded or JSON file)
-- No real order fulfillment
+- In-memory storage (no production DB)
+- Static product catalog (JSON file)
