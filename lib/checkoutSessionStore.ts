@@ -44,6 +44,17 @@ export type CheckoutSession = {
     promise: string | null;
     eta_minutes?: number | null;
   };
+  completion?: {
+    started_at: string;
+    ready_at: string | null;
+  };
+  order?: {
+    id: string | null;
+    created_at: string | null;
+  };
+  payment?: {
+    method: string;
+  };
   created_at: string;
   expires_at: string;
   updated_at: string;

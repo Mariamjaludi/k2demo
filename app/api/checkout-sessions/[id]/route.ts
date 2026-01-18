@@ -1,6 +1,47 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, saveSession, ShippingAddress, CheckoutSession } from "@/lib/checkoutSessionStore";
 
+// Check if completion is ready and flip status
+function checkForSessionCompletion(session: CheckoutSession): CheckoutSession {
+  if (session.status !== "complete_in_progress") return session;
+
+  const completion = session.completion;
+  if (!completion?.ready_at) return session;
+
+  const readyAtMs = Date.parse(completion.ready_at);
+  if (!Number.isFinite(readyAtMs)) return session;
+
+  if (Date.now() < readyAtMs) return session;
+
+  return {
+    ...session,
+    status: "completed",
+    completion: { started_at: completion.started_at, ready_at: null },
+    updated_at: new Date().toISOString(),
+  };
+}
+
+
+export async function GET(
+  _request: NextRequest,
+  context: { params: Promise<{ id: string }> }
+) {
+  const { id } = await context.params;
+  const session = getSession(id);
+
+  if (!session) {
+    return NextResponse.json({ error: "Checkout session not found" }, { status: 404 });
+  }
+
+  // Check if ready to flip to completed
+  const updatedSession = checkForSessionCompletion(session);
+  if (updatedSession.status !== session.status) saveSession(updatedSession);
+
+  return NextResponse.json({ session: updatedSession }, {
+    headers: { "Cache-Control": "no-store" }
+  });
+}
+
 type UpdateCheckoutRequest = {
   customer?: {
     email?: string;
@@ -75,9 +116,9 @@ export async function PATCH(
     return NextResponse.json({ error: "Checkout session not found" }, { status: 404 });
   }
 
-  if (session.status === "completed" || 
-    session.status === "canceled" || 
-    session.status === "complete_in_progress" || 
+  if (session.status === "completed" ||
+    session.status === "canceled" ||
+    session.status === "complete_in_progress" ||
     session.status === "requires_escalation") {
     return NextResponse.json(
       { error: `Cannot update session with status: ${session.status}` },
@@ -136,9 +177,9 @@ export async function PATCH(
     status: newStatus,
     customer: { email: newEmail },
     shipping: { address: newAddress, fee: newShippingFee },
-    delivery: { 
-      ...session.delivery, 
-      promise: newDeliveryPromise, 
+    delivery: {
+      ...session.delivery,
+      promise: newDeliveryPromise,
       eta_minutes: null
     },
     totals: newTotals,
