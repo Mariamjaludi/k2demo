@@ -1,0 +1,179 @@
+[
+  {
+    "id": "jarir_a4_copy_paper_500",
+    "title": "Roco Premium Copy Paper A4 – 500 Sheets",
+    "brand": "Roco",
+    "category": "office_supplies",
+    "price": 25,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/roco-a4-paper.png",
+    "attributes": {
+      "type": "copy paper",
+      "size": "A4",
+      "sheets": 500
+    },
+    "availability": { "in_stock": true, "stock_level": 120 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+  {
+    "id": "jarir_ballpoint_pen_blue_10",
+    "title": "Roco Ballpoint Pens Blue – Pack of 10",
+    "brand": "Roco",
+    "category": "office_supplies",
+    "price": 12,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/roco-blue-pens.png",
+    "attributes": {
+      "ink_color": "blue",
+      "pack_size": 10
+    },
+    "availability": { "in_stock": true, "stock_level": 200 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+  {
+    "id": "jarir_highlighter_set_6",
+    "title": "Roco Highlighter Set – 6 Colors",
+    "brand": "Roco",
+    "category": "office_supplies",
+    "price": 14,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/highlighter-set.png",
+    "attributes": {
+      "colors": 6
+    },
+    "availability": { "in_stock": true, "stock_level": 150 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+
+  {
+    "id": "jarir_school_backpack_basic",
+    "title": "Basic School Backpack – Navy Blue",
+    "brand": "Generic",
+    "category": "school_supplies",
+    "price": 79,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/school-backpack.png",
+    "attributes": {
+      "color": "navy blue",
+      "type": "backpack"
+    },
+    "availability": { "in_stock": true, "stock_level": 45 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+  {
+    "id": "jarir_pencil_set_student",
+    "title": "Student Pencil Set with Sharpener",
+    "brand": "Generic",
+    "category": "school_supplies",
+    "price": 9,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/pencil-set.png",
+    "attributes": {
+      "includes": ["pencils", "sharpener"]
+    },
+    "availability": { "in_stock": true, "stock_level": 180 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+  {
+    "id": "jarir_water_bottle_500ml",
+    "title": "Reusable Water Bottle – 500ml",
+    "brand": "Generic",
+    "category": "school_supplies",
+    "price": 15,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/water-bottle.png",
+    "attributes": {
+      "capacity_ml": 500
+    },
+    "availability": { "in_stock": true, "stock_level": 90 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+
+  {
+    "id": "jarir_coloring_set_kids",
+    "title": "Kids Coloring Set with Crayons and Pad",
+    "brand": "Generic",
+    "category": "toys_kids_learning",
+    "price": 29,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/coloring-set.png",
+    "attributes": {
+      "age_range": "4-8"
+    },
+    "availability": { "in_stock": true, "stock_level": 60 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+  {
+    "id": "jarir_activity_book_kids",
+    "title": "Kids Activity Book – Puzzles and Games",
+    "brand": "Generic",
+    "category": "toys_kids_learning",
+    "price": 19,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/activity-book.png",
+    "attributes": {
+      "type": "activity book"
+    },
+    "availability": { "in_stock": true, "stock_level": 75 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+
+  {
+    "id": "jarir_drawing_pad_a3",
+    "title": "A3 Drawing Pad – 50 Sheets",
+    "brand": "Generic",
+    "category": "arts_crafts",
+    "price": 18,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/a3-drawing-pad.png",
+    "attributes": {
+      "size": "A3",
+      "sheets": 50
+    },
+    "availability": { "in_stock": true, "stock_level": 85 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+  {
+    "id": "jarir_watercolor_set_12",
+    "title": "Watercolor Paint Set – 12 Colors",
+    "brand": "Generic",
+    "category": "arts_crafts",
+    "price": 22,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/watercolor-set.png",
+    "attributes": {
+      "colors": 12
+    },
+    "availability": { "in_stock": true, "stock_level": 70 },
+    "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+  },
+
+  {
+    "id": "jarir_english_grammar_visual",
+    "title": "English Grammar – Visual Guide",
+    "brand": "DK",
+    "category": "english_books",
+    "price": 65,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/english-grammar-book.png",
+    "attributes": {
+      "level": "beginner to intermediate"
+    },
+    "availability": { "in_stock": true, "stock_level": 40 },
+    "delivery": { "default_promise": "Deliver in 2–3 days in Riyadh" }
+  },
+  {
+    "id": "jarir_english_workbook_beginner",
+    "title": "English Workbook for Beginners",
+    "brand": "Cambridge",
+    "category": "english_books",
+    "price": 55,
+    "currency": "SAR",
+    "image_url": "https://your-cdn/english-workbook.png",
+    "attributes": {
+      "level": "beginner"
+    },
+    "availability": { "in_stock": true, "stock_level": 50 },
+    "delivery": { "default_promise": "Deliver in 2–3 days in Riyadh" }
+  }
+]
