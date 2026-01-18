@@ -82,19 +82,21 @@ Optional:
 ### Implemented Endpoints
 1. `GET /.well-known/ucp` - UCP discovery profile (returns merchant info, capabilities)
 2. `GET /api/products` - Product catalog with search (`?q=`, `?limit=`, `?include_oos=1`)
+3. `POST /api/checkout-sessions` - Create checkout session from product IDs and quantities
 
 ### Pending Endpoints
-3. `POST /api/checkout-sessions` - Create checkout
 4. `POST /api/checkout-sessions/{id}/complete` - Complete checkout
 
 ### Project Structure
 ```
 lib/
-  ucpProfile.ts          # UCP manifest builder
-  data/jarir-catalog.json # Product catalog (12 items)
+  ucpProfile.ts              # UCP manifest builder
+  checkoutSessionStore.ts    # In-memory session storage with types
+  data/jarir-catalog.json    # Product catalog (12 items)
 app/
-  .well-known/ucp/route.ts  # Discovery endpoint
-  api/products/route.ts     # Product search endpoint
+  .well-known/ucp/route.ts        # Discovery endpoint
+  api/products/route.ts           # Product search endpoint
+  api/checkout-sessions/route.ts  # Checkout session creation
 ```
 
 ### Simplifications for Demo

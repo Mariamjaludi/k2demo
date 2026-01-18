@@ -31,12 +31,21 @@ Returns the UCP discovery manifest for the merchant (Jarir). AI agents call this
   "services": { "rest": { "endpoint": "http://localhost:3000" } },
   "capabilities": [
     {
-      "name": "dev.ucp.shopping.product_catalog",
+      "name": "ucp.shopping.product_catalog",
       "version": "2025-04-01",
       "config": {
         "endpoint": "http://localhost:3000/api/products",
         "search_param": "q",
         "max_results": 20
+      }
+    },
+    {
+      "name": "ucp.shopping.checkout",
+      "version": "2025-04-01",
+      "config": {
+        "endpoint": "http://localhost:3000/api/checkout-sessions",
+        "supported_currencies": ["SAR"],
+        "vat_rate": 0.15
       }
     }
   ]
@@ -86,4 +95,67 @@ curl "http://localhost:3000/api/products?q=paper"
 
 # Limit results
 curl "http://localhost:3000/api/products?q=school&limit=5"
+```
+
+### Checkout
+
+#### `POST /api/checkout-sessions`
+
+Creates a new checkout session from a list of product IDs and quantities.
+
+**Request Body:**
+```json
+{
+  "items": [
+    { "product_id": "jarir_a4_copy_paper_500", "quantity": 2 },
+    { "product_id": "jarir_ballpoint_pen_blue_10", "quantity": 1 }
+  ]
+}
+```
+
+**Response (201):**
+```json
+{
+  "session": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "incomplete",
+    "currency": "SAR",
+    "line_items": [
+      {
+        "product_id": "jarir_a4_copy_paper_500",
+        "title": "Roco Premium Copy Paper A4 – 500 Sheets",
+        "quantity": 2,
+        "unit_price": 25,
+        "total": 50
+      }
+    ],
+    "customer": { "email": null },
+    "shipping": { "address": null, "fee": 0 },
+    "totals": {
+      "subtotal": 50,
+      "vat": 7.5,
+      "vat_rate": 0.15,
+      "total": 57.5
+    },
+    "delivery": { "promise": null, "eta_minutes": null },
+    "created_at": "2025-01-18T12:00:00.000Z",
+    "expires_at": "2025-01-18T18:00:00.000Z",
+    "updated_at": "2025-01-18T12:00:00.000Z"
+  },
+  "missing_fields": ["customer.email", "shipping.address"]
+}
+```
+
+**Features:**
+- Aggregates duplicate product IDs
+- Validates products exist and are in stock
+- Calculates subtotal, 15% VAT, and total
+- Sessions expire after 6 hours
+- Returns `missing_fields` to indicate required data for completion
+
+**Example:**
+```bash
+curl -X POST http://localhost:3000/api/checkout-sessions \
+  -H "Content-Type: application/json" \
+  -d '{"items": [{"product_id": "jarir_a4_copy_paper_500", "quantity": 2}]}'
 ```

@@ -31,6 +31,15 @@ export function buildUcpProfile(request: NextRequest) {
           search_param: "q",
           max_results: 20
         }
+      },
+      {
+        name: "ucp.shopping.checkout",
+        version: "2025-04-01",
+        config: {
+          endpoint: `${baseUrl}/api/checkout-sessions`,
+          supported_currencies: ["SAR"],
+          vat_rate: 0.15
+        }
       }
     ]
   };
