@@ -4,6 +4,13 @@ import { getSession, saveSession, CheckoutSession } from "@/lib/checkoutSessionS
 
 const COMPLETION_DELAY_SECONDS = 5;
 
+function noStoreJson(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { "Cache-Control": "no-store" }
+  });
+}
+
 export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -16,27 +23,28 @@ export async function POST(
   }
 
   if (session.status === "completed") {
-    return NextResponse.json(
+    return noStoreJson(
       { error: "Session already completed", session },
-      { status: 409, headers: { "Cache-Control": "no-store" } }
-    );
+      409
+    )
   }
 
   if (session.status === "complete_in_progress") {
-    return NextResponse.json(
+    return noStoreJson(
       { message: "Completion already in progress", session },
-      { status: 202, headers: { "Cache-Control": "no-store" } }
-    );
+      202
+    )
   }
 
   if (session.status !== "ready_for_complete") {
-    return NextResponse.json(
+    return noStoreJson(
       { error: `Cannot complete session with status: ${session.status}` },
-      { status: 409 }
-    );
-  }
+      409
+    )
+  );
+}
 
-  if (!session.customer.email || !session.shipping.address) {
+  if (!session.customer?.email || !session.shipping?.address) {
     return NextResponse.json(
       { error: "Missing customer email or shipping address" },
       { status: 400 }
