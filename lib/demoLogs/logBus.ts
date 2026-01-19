@@ -2,7 +2,7 @@
 
 import { DemoLogEvent, LogCategory, Json } from "./types";
 
-const MAX_BUFFER_SIZE = 250;
+export const MAX_BUFFER_SIZE = 250;
 
 type LogListener = (event: DemoLogEvent) => void;
 
@@ -55,4 +55,24 @@ export function emitLog(params: EmitLogParams): DemoLogEvent {
   }
 
   return logEvent;
+}
+
+export function subscribeLogs(listener: LogListener): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function getLogSnapshot(): DemoLogEvent[] {
+  return [...buffer];
+}
+
+export function clearLogs(): void {
+  buffer.length = 0;
+  idCounter = 0; 
+}
+
+export function getSubscriberCount(): number {
+  return listeners.size;
 }
