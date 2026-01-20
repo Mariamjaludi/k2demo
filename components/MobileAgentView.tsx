@@ -1,7 +1,8 @@
 "use client";
 
 import { DeviceFrame } from "./DeviceFrame";
-import { ChatIdleScreen } from "./chat";
+import { ChatIdleScreen, ChatLoadingScreen } from "./chat";
+import { PlaceholderScreen } from "./PlaceholderScreen";
 import { useAgentFlowState } from "@/lib/agentFlow";
 
 export function MobileAgentView() {
@@ -19,15 +20,18 @@ export function MobileAgentView() {
             queryText={state.queryText}
             onQueryChange={setQuery}
             onSubmit={submitQuery}
+            messages={state.messages}
           />
         );
 
       case "chat_loading":
         return (
-          <ChatIdleScreen
+          <ChatLoadingScreen
+            lastQuery={state.lastSubmittedQuery}
             queryText={state.queryText}
             onQueryChange={setQuery}
             onSubmit={submitQuery}
+            messages={state.messages}
           />
         );
 
@@ -37,14 +41,7 @@ export function MobileAgentView() {
       case "order_processing":
       case "order_complete":
         return (
-          <div className="flex h-full items-center justify-center bg-white p-4">
-            <div className="text-center">
-              <p className="text-sm font-medium text-zinc-700">
-                {state.currentScreen.replace(/_/g, " ")}
-              </p>
-              <p className="mt-1 text-xs text-zinc-400">Coming soon</p>
-            </div>
-          </div>
+          <PlaceholderScreen title={state.currentScreen.replace(/_/g, " ")} />
         );
 
       default:

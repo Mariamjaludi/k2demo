@@ -4,18 +4,22 @@ import { useState } from "react";
 import { ChatHeader } from "./ChatHeader";
 import { ChatComposer } from "./ChatComposer";
 import { SimulatedKeyboard } from "./SimulatedKeyboard";
+import { ChatMessagesList } from "./ChatMessage";
 import { SAFE_AREA } from "../DeviceFrame";
+import type { ChatMessage } from "@/lib/agentFlow/types";
 
 interface ChatIdleScreenProps {
   queryText: string;
   onQueryChange: (text: string) => void;
   onSubmit: () => void;
+  messages?: ChatMessage[];
 }
 
 export function ChatIdleScreen({
   queryText,
   onQueryChange,
   onSubmit,
+  messages = [],
 }: ChatIdleScreenProps) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
@@ -31,14 +35,17 @@ export function ChatIdleScreen({
   return (
     <div
       className="flex h-full flex-col bg-white"
-      style={{ paddingTop: SAFE_AREA.topInset }}
+      style={{
+        paddingTop: SAFE_AREA.topInset,
+        paddingBottom: keyboardVisible ? 0 : SAFE_AREA.bottom,
+      }}
     >
       {/* Header */}
       <ChatHeader />
 
-      {/* Message area - empty for idle state */}
+      {/* Message area */}
       <div className="flex-1 overflow-y-auto">
-        {/* Messages would render here */}
+        <ChatMessagesList messages={messages} />
       </div>
 
       {/* Composer */}
