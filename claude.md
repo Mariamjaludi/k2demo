@@ -99,12 +99,20 @@ lib/
   ucpProfile.ts              # UCP manifest builder
   checkoutSessionStore.ts    # In-memory session storage with types
   data/jarir-catalog.json    # Product catalog (12 items)
+  demoLogs/
+    types.ts                 # Event schema (DemoLogEvent, LogCategory)
+    logBus.ts                # In-memory pub/sub logging bus
 app/
+  page.tsx                   # Home page with split-screen layout
   .well-known/ucp/route.ts                    # Discovery endpoint
   api/products/route.ts                       # Product search endpoint
   api/checkout-sessions/route.ts              # Checkout session creation
   api/checkout-sessions/[id]/route.ts         # GET and PATCH session
   api/checkout-sessions/[id]/complete/route.ts # Complete checkout
+components/
+  TerminalLogs.tsx           # Live terminal-style log viewer
+  MobileAgentView.tsx        # Mobile phone mockup for agent UI
+  DemoControlBar.tsx         # Demo buttons to emit sample events
 ```
 
 ### Simplifications for Demo
@@ -112,3 +120,74 @@ app/
 - Mock payment handling (auto-approve)
 - In-memory storage (no production DB)
 - Static product catalog (JSON file)
+
+---
+
+## Demo Logging System
+
+### Event Schema (`lib/demoLogs/types.ts`)
+Defines the type system for demo logging events:
+
+**Log Categories:**
+- `ui` - User actions and client orchestration
+- `agent` - AI shopping agent actions
+- `k2` - K2 middleware reasoning/negotiation
+- `merchant` - Merchant API requests/responses
+- `checkout` - Checkout session lifecycle
+- `payment` - Mada payment flow and order confirmation
+- `system` - System-level events (init, errors)
+
+**DemoLogEvent Structure:**
+- `id` - Unique identifier
+- `timestamp` - ISO 8601 timestamp
+- `category` - LogCategory enum
+- `event` - Event name (e.g., "checkout.complete.request")
+- `message` - Human-readable description
+- `session_id` - Optional checkout session ID
+- `payload` - Arbitrary JSON data
+- `level` - debug, info, warn, error
+
+### Logging Bus (`lib/demoLogs/logBus.ts`)
+In-memory pub/sub event bus for log collection:
+
+- `emitLog(params)` - Emit a new log event
+- `subscribeLogs(listener)` - Subscribe to live events (returns unsubscribe fn)
+- `getLogSnapshot()` - Get all buffered logs
+- `clearLogs()` - Clear all logs
+- Maintains circular buffer of 250 events max
+
+---
+
+## UI Components
+
+### Split-Screen Layout (`app/page.tsx`)
+```
+┌─────────────────────────────────────────┐
+│        DemoControlBar (top)             │
+├──────────────┬──────────────────────────┤
+│              │                          │
+│ MobileAgent  │   TerminalLogs (live)    │
+│  View (50%)  │   (50%)                  │
+│              │                          │
+└──────────────┴──────────────────────────┘
+```
+
+### TerminalLogs (`components/TerminalLogs.tsx`)
+Live terminal-style log viewer:
+- Subscribes to logBus for real-time updates
+- Color-coded by category and severity level
+- Expandable JSON payloads
+- Auto-scrolls to latest entry
+- Clear button and event count display
+
+### MobileAgentView (`components/MobileAgentView.tsx`)
+Mobile phone mockup (375x700px) for the K2 shopping agent:
+- Phone frame with notch design
+- Header, chat area placeholder, input field
+- Visual context for the agent experience
+
+### DemoControlBar (`components/DemoControlBar.tsx`)
+Control panel with buttons to emit sample events:
+- Agent Event, Merchant Req/Res, K2 Reasoning
+- Checkout, Payment, Clear Logs
+- Demonstrates logging system without live integration

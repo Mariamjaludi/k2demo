@@ -242,3 +242,46 @@ curl -X POST http://localhost:3000/api/checkout-sessions/{id}/complete \
 3. POST /api/checkout-sessions/{id}/complete → status: "complete_in_progress"
 4. GET /api/checkout-sessions/{id}      → status: "completed" (after 5s)
 ```
+
+## Demo UI
+
+The demo features a split-screen layout with a mobile agent mockup on the left and a live terminal log viewer on the right.
+
+### Components
+
+| Component | Description |
+|-----------|-------------|
+| `MobileAgentView` | Mobile phone mockup (375x700px) representing the K2 shopping agent chat interface |
+| `TerminalLogs` | Live terminal-style log viewer with color-coded events and expandable JSON payloads |
+| `DemoControlBar` | Control panel with buttons to emit sample events for demonstration |
+
+### Logging System
+
+The demo includes a client-side logging bus (`lib/demoLogs/`) for narrating system events in real-time:
+
+**Log Categories:**
+- `ui` - User actions
+- `agent` - AI agent actions
+- `k2` - K2 middleware reasoning
+- `merchant` - API requests/responses
+- `checkout` - Session lifecycle
+- `payment` - Payment flow
+- `system` - System events
+
+**Usage:**
+```typescript
+import { emitLog, subscribeLogs } from '@/lib/demoLogs/logBus';
+
+// Emit a log event
+emitLog({
+  category: 'agent',
+  event: 'agent.search.start',
+  message: 'Searching for products',
+  payload: { query: 'school supplies' }
+});
+
+// Subscribe to live events
+const unsubscribe = subscribeLogs((event) => {
+  console.log(event);
+});
+```
