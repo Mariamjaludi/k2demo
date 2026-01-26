@@ -23,7 +23,6 @@ const initialState: AgentFlowState = {
   currentScreen: "chat_idle",
   modalState: null,
   queryText: "",
-  lastSubmittedQuery: "",
   messages: [],
   results: [],
   resultsScrollOffset: 0,
@@ -59,7 +58,6 @@ function agentFlowReducer(
         ...state,
         messages: [...state.messages, userMessage],
         queryText: "",
-        lastSubmittedQuery: trimmedQuery,
         currentScreen: "chat_loading",
         // Clear prior results state to avoid UI ghosts
         results: [],

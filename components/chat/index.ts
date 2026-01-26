@@ -7,3 +7,4 @@ export { TabRow } from "./TabRow";
 export { PostSendComposer } from "./PostSendComposer";
 export { ChatLoadingScreen } from "./ChatLoadingScreen";
 export { ChatMessage, ChatMessagesList } from "./ChatMessage";
+export { GlowBar, LoadingIndicator } from "./LoadingIndicators";

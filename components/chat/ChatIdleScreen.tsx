@@ -40,15 +40,12 @@ export function ChatIdleScreen({
         paddingBottom: keyboardVisible ? 0 : SAFE_AREA.bottom,
       }}
     >
-      {/* Header */}
       <ChatHeader />
 
-      {/* Message area */}
       <div className="flex-1 overflow-y-auto">
         <ChatMessagesList messages={messages} />
       </div>
 
-      {/* Composer */}
       <ChatComposer
         value={queryText}
         onChange={onQueryChange}
@@ -57,7 +54,6 @@ export function ChatIdleScreen({
         placeholder="Message"
       />
 
-      {/* Simulated keyboard */}
       <SimulatedKeyboard visible={keyboardVisible} />
     </div>
   );

@@ -27,7 +27,6 @@ export function MobileAgentView() {
       case "chat_loading":
         return (
           <ChatLoadingScreen
-            lastQuery={state.lastSubmittedQuery}
             queryText={state.queryText}
             onQueryChange={setQuery}
             onSubmit={submitQuery}

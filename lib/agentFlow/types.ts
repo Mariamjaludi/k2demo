@@ -69,7 +69,6 @@ export interface AgentFlowState {
 
   // Chat
   queryText: string;
-  lastSubmittedQuery: string;
   messages: ChatMessage[];
 
   // Results
