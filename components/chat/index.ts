@@ -1,10 +1,11 @@
-export { ChatHeader } from "./ChatHeader";
-export { ChatComposer } from "./ChatComposer";
+export { Header, type HeaderVariant } from "./Header";
+export { IdleChatInput } from "./IdleChatInput";
 export { SimulatedKeyboard } from "./SimulatedKeyboard";
 export { ChatIdleScreen } from "./ChatIdleScreen";
-export { PostSendHeader } from "./PostSendHeader";
 export { TabRow } from "./TabRow";
-export { PostSendComposer } from "./PostSendComposer";
-export { ChatLoadingScreen } from "./ChatLoadingScreen";
+export { ActiveChatInput } from "./ActiveChatInput";
+export { ChatActiveScreen } from "./ChatActiveScreen";
 export { ChatMessage, ChatMessagesList } from "./ChatMessage";
 export { GlowBar, LoadingIndicator } from "./LoadingIndicators";
+export { ProductCard, type ProductCardData } from "./ProductCard";
+export { ProductList } from "./ProductList";

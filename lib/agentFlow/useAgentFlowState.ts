@@ -5,11 +5,11 @@ import type {
   AgentFlowState,
   AgentFlowAction,
   ModalKind,
-  Product,
   ChatMessage,
   CustomerInfo,
   OrderTotals,
 } from "./types";
+import type { ProductCardData } from "@/components/chat/ProductCard";
 
 const VAT_RATE = 0.15;
 const SHIPPING_RIYADH = 10;
@@ -24,7 +24,6 @@ const initialState: AgentFlowState = {
   modalState: null,
   queryText: "",
   messages: [],
-  results: [],
   resultsScrollOffset: 0,
   productsById: {},
   selectedProductId: null,
@@ -58,9 +57,7 @@ function agentFlowReducer(
         ...state,
         messages: [...state.messages, userMessage],
         queryText: "",
-        currentScreen: "chat_loading",
-        // Clear prior results state to avoid UI ghosts
-        results: [],
+        currentScreen: "chat_active",
         resultsScrollOffset: 0,
         selectedProductId: null,
         modalState: null,
@@ -77,22 +74,31 @@ function agentFlowReducer(
       };
 
     case "SET_LOADING":
-      return { ...state, currentScreen: "chat_loading" };
+      return { ...state, currentScreen: "chat_active" };
 
     // ─── Results Actions ──────────────────────────────────────────────
-    case "SET_RESULTS": {
+    case "SET_PRODUCTS": {
+      const { products, productDescription } = action.payload;
       // Merge new products into cache
       const newProductsById = { ...state.productsById };
-      for (const product of action.payload) {
+      for (const product of products) {
         newProductsById[product.id] = product;
       }
+      // Add an agent message carrying the product results into the conversation
+      const productMessage: ChatMessage = {
+        id: `msg-products-${Date.now()}`,
+        role: "agent",
+        content: "",
+        timestamp: Date.now(),
+        products,
+        productDescription,
+      };
       return {
         ...state,
-        results: action.payload,
         productsById: newProductsById,
         resultsScrollOffset: 0,
         selectedProductId: null,
-        currentScreen: "results_list",
+        messages: [...state.messages, productMessage],
       };
     }
 
@@ -169,7 +175,7 @@ export interface AgentFlowContext {
   state: AgentFlowState;
 
   // Derived values
-  selectedProduct: Product | null;
+  selectedProduct: ProductCardData | null;
   totals: OrderTotals | null;
   canCheckout: boolean;
 
@@ -179,9 +185,8 @@ export interface AgentFlowContext {
   addAgentMessage: (content: string) => void;
 
   // Results actions
-  setResults: (products: Product[]) => void;
+  setProducts: (products: ProductCardData[], productDescription: string) => void;
   saveScrollOffset: (offset: number) => void;
-
   // Navigation actions
   selectProduct: (productId: string) => void;
   backToResults: () => void;
@@ -226,12 +231,12 @@ export function useAgentFlowState(): AgentFlowContext {
       vat,
       vatRate: VAT_RATE,
       total,
-      currency: selectedProduct.currency,
+      currency: selectedProduct.currency as "SAR",
     };
   }, [selectedProduct, state.quantity, state.customer?.address]);
 
   const canCheckout = useMemo(() => {
-    if (!selectedProduct || !selectedProduct.availability.in_stock) return false;
+    if (!selectedProduct) return false;
 
     const emailOk = !!state.customer?.email?.trim();
     const addr = state.customer?.address;
@@ -263,8 +268,8 @@ export function useAgentFlowState(): AgentFlowContext {
     dispatch({ type: "ADD_MESSAGE", payload: message });
   }, []);
 
-  const setResults = useCallback((products: Product[]) => {
-    dispatch({ type: "SET_RESULTS", payload: products });
+  const setProducts = useCallback((products: ProductCardData[], productDescription: string) => {
+    dispatch({ type: "SET_PRODUCTS", payload: { products, productDescription } });
   }, []);
 
   const saveScrollOffset = useCallback((offset: number) => {
@@ -323,7 +328,7 @@ export function useAgentFlowState(): AgentFlowContext {
     setQuery,
     submitQuery,
     addAgentMessage,
-    setResults,
+    setProducts,
     saveScrollOffset,
     selectProduct,
     backToResults,

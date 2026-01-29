@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChatHeader } from "./ChatHeader";
-import { ChatComposer } from "./ChatComposer";
+import { IdleChatInput } from "./IdleChatInput";
 import { SimulatedKeyboard } from "./SimulatedKeyboard";
 import { ChatMessagesList } from "./ChatMessage";
 import { SAFE_AREA } from "../DeviceFrame";
@@ -34,19 +33,16 @@ export function ChatIdleScreen({
 
   return (
     <div
-      className="flex h-full flex-col bg-white"
+      className="flex min-h-0 flex-1 flex-col bg-white"
       style={{
-        paddingTop: SAFE_AREA.topInset,
         paddingBottom: keyboardVisible ? 0 : SAFE_AREA.bottom,
       }}
     >
-      <ChatHeader />
-
-      <div className="flex-1 overflow-y-auto">
+      <div className="min-h-0 flex-1 overflow-y-auto">
         <ChatMessagesList messages={messages} />
       </div>
 
-      <ChatComposer
+      <IdleChatInput
         value={queryText}
         onChange={onQueryChange}
         onSubmit={handleSubmit}

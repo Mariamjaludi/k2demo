@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, ChangeEvent, KeyboardEvent } from "react";
 
-interface ChatComposerProps {
+interface IdleChatInputProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
@@ -16,7 +16,7 @@ interface ChatComposerProps {
 const LINE_HEIGHT = 24; // px per line
 const MIN_ROWS = 1;
 
-export function ChatComposer({
+export function IdleChatInput({
   value,
   onChange,
   onSubmit,
@@ -25,7 +25,7 @@ export function ChatComposer({
   placeholder = "Message",
   maxRows = 5,
   disabled = false,
-}: ChatComposerProps) {
+}: IdleChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const canSubmit = value.trim().length > 0 && !disabled;

@@ -1,7 +1,12 @@
+import type { ProductCardData } from "@/components/chat/ProductCard";
+
+/** Reexport for convenience */
+export type { ProductCardData };
+
 /** Screen states for the mobile agent flow */
 export type Screen =
   | "chat_idle"
-  | "chat_loading"
+  | "chat_active"
   | "results_list"
   | "product_detail"
   | "order_processing"
@@ -16,6 +21,9 @@ export interface ChatMessage {
   role: "user" | "agent";
   content: string;
   timestamp: number;
+  /** When present, this agent message carries product results */
+  products?: ProductCardData[];
+  productDescription?: string;
 }
 
 /** Product from search results */
@@ -72,10 +80,9 @@ export interface AgentFlowState {
   messages: ChatMessage[];
 
   // Results
-  results: Product[];
   resultsScrollOffset: number;
   /** Cache of all products seen (including competitors), keyed by id */
-  productsById: Record<string, Product>;
+  productsById: Record<string, ProductCardData>;
 
   // Selection
   selectedProductId: string | null;
@@ -101,7 +108,7 @@ export type AgentFlowAction =
   | { type: "SET_LOADING" }
 
   // Results actions
-  | { type: "SET_RESULTS"; payload: Product[] }
+  | { type: "SET_PRODUCTS"; payload: { products: ProductCardData[]; productDescription: string } }
   | { type: "SAVE_SCROLL_OFFSET"; payload: number }
 
   // Navigation actions

@@ -43,7 +43,7 @@ export function TabRow({ loading = false }: TabRowProps) {
           ))}
         </div>
       </div>
-      <GlowBar visible={loading} />
+      {loading && <GlowBar />}
     </div>
   );
 }

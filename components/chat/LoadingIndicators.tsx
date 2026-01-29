@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type CSSProperties } from "react";
 
 // Timing constants
 const THINKING_MS = 1800;
@@ -23,14 +23,11 @@ export enum LoadingPhase {
 
 /**
  * Soft glow bar that sits under the tab row during loading.
- * Displays a gradient GlowBar({ visible = true }: { visible?: boolean }) through Google-like colors (red, yellow, green, blue).
+ * Displays a gradient through Google-like colors (red, yellow, green, blue).
  */
-export function GlowBar({ visible = true }) {
+export function GlowBar() {
   return (
-    <div
-      className={`pointer-events-none absolute left-0 right-0 top-full z-0 h-5 overflow-visible transition-opacity duration-500 ${visible ? "opacity-100" : "opacity-0"
-        }`}
-    >
+    <div className="pointer-events-none absolute left-0 right-0 top-full z-0 h-5 overflow-visible">
       {/* Grey gradient base that fades to white */}
       <div
         className="absolute inset-x-4 top-0 h-3"
@@ -144,14 +141,14 @@ function SearchingPhase({ visible = true }: { visible?: boolean }) {
   // Exactly 3 badges visible (with overlap)
   const viewportWidth = badgeSize + 2 * step;
 
-  const marqueeStyle: React.CSSProperties = {
+  const marqueeStyle: CSSProperties = {
     width: viewportWidth,
     height: badgeSize,
   };
 
   const stepStyle = {
     "--badge-step": `${step}px`,
-  } as React.CSSProperties;
+  } as CSSProperties;
 
   return (
     <div

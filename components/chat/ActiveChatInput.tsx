@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useCallback, ChangeEvent, KeyboardEvent } from "react";
 
-interface PostSendComposerProps {
+interface ActiveChatInputProps {
   value: string;
   onChange: (value: string) => void;
   onSubmit: () => void;
@@ -14,14 +14,14 @@ interface PostSendComposerProps {
 const LINE_HEIGHT = 24;
 const MAX_ROWS = 4;
 
-export function PostSendComposer({
+export function ActiveChatInput({
   value,
   onChange,
   onSubmit,
   onFocus,
   placeholder = "Ask anything",
   disabled = false,
-}: PostSendComposerProps) {
+}: ActiveChatInputProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const canSubmit = value.trim().length > 0 && !disabled;
 
