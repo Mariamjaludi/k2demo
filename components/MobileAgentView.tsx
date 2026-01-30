@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { DeviceFrame, SAFE_AREA } from "./DeviceFrame";
-import { ChatScreen, ProductDetailScreen, CreateAccountModal } from "./chat";
+import { ChatScreen, ProductDetailScreen, CreateAccountModal, CheckoutSummaryModal } from "./chat";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { useAgentFlowState } from "@/lib/agentFlow";
-import { fetchProducts, type FetchProductsResult } from "@/lib/productClient";
+import { fetchProducts, getProductsByRetailer, type FetchProductsResult } from "@/lib/productClient";
 
 interface PendingFetch {
   /** ID of the user message that triggered this fetch */
@@ -70,6 +70,12 @@ export function MobileAgentView() {
     setProducts(result.products, result.productDescription);
   }, [setProducts]);
 
+  // More products from the same retailer for the checkout modal
+  const moreFromRetailer = useMemo(() => {
+    if (!selectedProduct) return [];
+    return getProductsByRetailer(selectedProduct.retailer, selectedProduct.id);
+  }, [selectedProduct]);
+
   const renderScreen = () => {
     switch (state.currentScreen) {
       case "chat":
@@ -119,7 +125,15 @@ export function MobileAgentView() {
               <CreateAccountModal
                 retailerName={selectedProduct.retailer}
                 onClose={closeModal}
-                onContinue={() => {
+                onContinue={() => openModal("checkout")}
+              />
+            )}
+            {state.modalState === "checkout" && (
+              <CheckoutSummaryModal
+                product={selectedProduct}
+                moreFromRetailer={moreFromRetailer}
+                onClose={closeModal}
+                onContinueToCheckout={() => {
                   closeModal();
                   startOrderProcessing();
                 }}

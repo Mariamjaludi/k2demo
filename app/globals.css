@@ -122,6 +122,21 @@ body {
   animation: sheet-in-from-bottom 0.3s ease-out both;
 }
 
+@keyframes sheet-out-to-bottom {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
+.animate-sheet-out {
+  animation: sheet-out-to-bottom 0.25s ease-in both;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;

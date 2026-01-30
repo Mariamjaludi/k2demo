@@ -204,6 +204,26 @@ function toProduct(item: CatalogItem): Product {
   };
 }
 
+/**
+ * Get products from a specific retailer's catalog (for recommendations).
+ * Excludes a given product ID so the selected item isn't recommended to itself.
+ */
+export function getProductsByRetailer(retailer: Retailer, excludeId?: string, limit = 6): Product[] {
+  if (retailer === Retailer.Jarir) {
+    // Jarir catalog is loaded via API normally, but we can import it directly for recs
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const jarirCatalog = require("./data/jarir-catalog.json") as CatalogItem[];
+    return jarirCatalog
+      .map(toProduct)
+      .filter((p) => p.id !== excludeId)
+      .slice(0, limit);
+  }
+
+  return MOCK_COMPETITORS
+    .filter((p) => p.retailer === retailer && p.id !== excludeId)
+    .slice(0, limit);
+}
+
 export interface FetchProductsOptions {
   query: string;
   limit?: number;

@@ -9,3 +9,4 @@ export { ProductCard, Retailer, RETAILER_LOGOS, type Product } from "./ProductCa
 export { ProductList } from "./ProductList";
 export { ProductDetailScreen } from "./ProductDetailScreen";
 export { CreateAccountModal } from "./CreateAccountModal";
+export { CheckoutSummaryModal } from "./CheckoutSummaryModal";
