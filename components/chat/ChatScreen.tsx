@@ -1,16 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { TabRow } from "./TabRow";
-import { ActiveChatInput } from "./ActiveChatInput";
+import { Header } from "./Header";
+import { ChatInput } from "./ChatInput";
 import { SimulatedKeyboard } from "./SimulatedKeyboard";
+import { ChatMessagesList } from "./ChatMessage";
+import { TabRow } from "./TabRow";
 import { SAFE_AREA } from "../DeviceFrame";
 import { LoadingIndicator, LoadingPhase } from "./LoadingIndicators";
 import { ProductList } from "./ProductList";
 import type { ChatMessage } from "@/lib/agentFlow/types";
 
-
-interface ChatActiveScreenProps {
+interface ChatScreenProps {
   queryText: string;
   onQueryChange: (text: string) => void;
   onSubmit: () => void;
@@ -130,11 +131,13 @@ function LoadingSequence({ onComplete }: { onComplete?: () => void }) {
   }, [onComplete]);
 
   useEffect(() => {
+    let rafId: number | null = null;
+
     const transitionTo = (next: LoadingPhase) => {
       setFadingOut(true);
       window.setTimeout(() => {
         setPhase(next);
-        requestAnimationFrame(() => setFadingOut(false));
+        rafId = requestAnimationFrame(() => setFadingOut(false));
       }, FADE_MS);
     };
 
@@ -154,28 +157,23 @@ function LoadingSequence({ onComplete }: { onComplete?: () => void }) {
       window.clearTimeout(t1);
       window.clearTimeout(t2);
       window.clearTimeout(t3);
+      if (rafId !== null) cancelAnimationFrame(rafId);
     };
   }, []);
 
   return <LoadingIndicator loadingPhase={phase} fadingOut={fadingOut} />;
 }
 
-
-export function ChatActiveScreen({
+export function ChatScreen({
   queryText,
   onQueryChange,
   onSubmit,
   messages = [],
   onClickTitle,
   onAnimationComplete,
-}: ChatActiveScreenProps) {
+}: ChatScreenProps) {
   const [keyboardVisible, setKeyboardVisible] = useState(false);
-
-  // Find the last user message to determine loading state
-  const lastUserMessage = messages.findLast((m) => m.role === "user");
-  const isLoading =
-    !!lastUserMessage &&
-    !messages.some((m) => m.role === "agent" && m.products && m.products.length > 0 && m.timestamp > lastUserMessage.timestamp);
+  const isIdle = messages.length === 0;
 
   const handleFocus = () => setKeyboardVisible(true);
 
@@ -184,52 +182,68 @@ export function ChatActiveScreen({
     onSubmit();
   };
 
+  // Active mode: determine loading state from messages
+  const lastUserMessage = messages.findLast((m) => m.role === "user");
+  const isLoading =
+    !isIdle &&
+    !!lastUserMessage &&
+    !messages.some(
+      (m) => m.role === "agent" && m.products && m.products.length > 0 && m.timestamp > lastUserMessage.timestamp
+    );
+
   return (
     <div
       className="flex min-h-0 flex-1 flex-col bg-white"
-      style={{ paddingBottom: SAFE_AREA.bottom }}
+      style={{
+        paddingBottom: isIdle && !keyboardVisible ? 0 : SAFE_AREA.bottom,
+      }}
     >
-      <TabRow loading={isLoading} />
+      <Header variant={isIdle ? "idle" : "active"} />
 
-      <div className="content min-h-0 flex-1 overflow-y-auto py-4">
-        {/* Render all messages in chronological order */}
-        {messages.map((msg) => {
-          // Agent message with products → render product list
-          if (msg.role === "agent" && msg.products && msg.products.length > 0) {
-            return (
-              <ProductResultMessage
-                key={msg.id}
-                message={msg}
-                onClickTitle={onClickTitle}
-              />
-            );
-          }
+      {!isIdle && <TabRow loading={isLoading} />}
 
-          // User message → query bubble
-          if (msg.role === "user") {
-            return <QueryBubble key={msg.id} text={msg.content} />;
-          }
+      <div className={`min-h-0 flex-1 overflow-y-auto${!isIdle ? " py-4" : ""}`}>
+        {isIdle ? (
+          <ChatMessagesList messages={messages} />
+        ) : (
+          <>
+            {messages.map((msg) => {
+              if (msg.role === "agent" && msg.products && msg.products.length > 0) {
+                return (
+                  <ProductResultMessage
+                    key={msg.id}
+                    message={msg}
+                    onClickTitle={onClickTitle}
+                  />
+                );
+              }
 
-          // Agent text message (no products)
-          if (msg.role === "agent" && msg.content) {
-            return (
-              <div key={msg.id} className="mb-4 flex justify-start px-4">
-                <div className="inline-block max-w-[85%] rounded-2xl bg-zinc-100 px-4 py-3">
-                  <span className="text-sm text-zinc-800">{msg.content}</span>
-                </div>
-              </div>
-            );
-          }
+              if (msg.role === "user") {
+                return <QueryBubble key={msg.id} text={msg.content} />;
+              }
 
-          return null;
-        })}
+              if (msg.role === "agent" && msg.content) {
+                return (
+                  <div key={msg.id} className="mb-4 flex justify-start px-4">
+                    <div className="inline-block max-w-[85%] rounded-2xl bg-zinc-100 px-4 py-3">
+                      <span className="text-sm text-zinc-800">{msg.content}</span>
+                    </div>
+                  </div>
+                );
+              }
 
-        {isLoading && (
-          <LoadingSequence key={lastUserMessage?.id} onComplete={onAnimationComplete} />
+              return null;
+            })}
+
+            {isLoading && (
+              <LoadingSequence key={lastUserMessage?.id} onComplete={onAnimationComplete} />
+            )}
+          </>
         )}
       </div>
 
-      <ActiveChatInput
+      <ChatInput
+        variant={isIdle ? "idle" : "active"}
         value={queryText}
         onChange={onQueryChange}
         onSubmit={handleSubmit}

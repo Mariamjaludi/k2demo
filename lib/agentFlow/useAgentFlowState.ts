@@ -14,7 +14,7 @@ import { VAT_RATE, SHIPPING_RIYADH, SHIPPING_OTHER, round2 } from "@/lib/pricing
 
 /** Initial state for the agent flow */
 const initialState: AgentFlowState = {
-  currentScreen: "chat_idle",
+  currentScreen: "chat",
   modalState: null,
   queryText: "",
   messages: [],
@@ -51,7 +51,7 @@ function agentFlowReducer(
         ...state,
         messages: [...state.messages, userMessage],
         queryText: "",
-        currentScreen: "chat_active",
+        currentScreen: "chat",
         resultsScrollOffset: 0,
         selectedProductId: null,
         modalState: null,
@@ -68,7 +68,7 @@ function agentFlowReducer(
       };
 
     case "SET_LOADING":
-      return { ...state, currentScreen: "chat_active" };
+      return { ...state, currentScreen: "chat" };
 
     // ─── Results Actions ──────────────────────────────────────────────
     case "SET_PRODUCTS": {
@@ -113,10 +113,10 @@ function agentFlowReducer(
       };
 
     case "BACK_TO_RESULTS":
-      // Navigate back to chat (results are shown within chat_active), preserve scroll position, close any modal
+      // Navigate back to chat, preserve scroll position, close any modal
       return {
         ...state,
-        currentScreen: "chat_active",
+        currentScreen: "chat",
         modalState: null,
       };
 

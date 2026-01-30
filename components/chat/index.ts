@@ -1,10 +1,8 @@
 export { Header, type HeaderVariant } from "./Header";
-export { IdleChatInput } from "./IdleChatInput";
+export { ChatInput } from "./ChatInput";
 export { SimulatedKeyboard } from "./SimulatedKeyboard";
-export { ChatIdleScreen } from "./ChatIdleScreen";
+export { ChatScreen } from "./ChatScreen";
 export { TabRow } from "./TabRow";
-export { ActiveChatInput } from "./ActiveChatInput";
-export { ChatActiveScreen } from "./ChatActiveScreen";
 export { ChatMessage, ChatMessagesList } from "./ChatMessage";
 export { GlowBar, LoadingIndicator } from "./LoadingIndicators";
 export { ProductCard, Retailer, type Product } from "./ProductCard";

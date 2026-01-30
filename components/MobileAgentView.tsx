@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { DeviceFrame, SAFE_AREA } from "./DeviceFrame";
-import { ChatIdleScreen, ChatActiveScreen, Header, ProductDetailScreen } from "./chat";
+import { ChatScreen, ProductDetailScreen } from "./chat";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { useAgentFlowState } from "@/lib/agentFlow";
 import { fetchProducts, type FetchProductsResult } from "@/lib/productClient";
@@ -45,7 +45,6 @@ export function MobileAgentView() {
       promise: fetchProducts({ query }),
     };
 
-    // Adds user message and transitions to chat_active
     submitQuery(messageId);
   }, [state.queryText, submitQuery]);
 
@@ -59,7 +58,8 @@ export function MobileAgentView() {
     if (pendingFetchRef.current?.messageId !== pending.messageId) return;
 
     // Guard against applying results after navigating away from chat
-    if (screenRef.current !== "chat_active") {
+    // Allow "product_detail" since ChatScreen is still rendered underneath
+    if (screenRef.current !== "chat" && screenRef.current !== "product_detail") {
       pendingFetchRef.current = null;
       return;
     }
@@ -68,24 +68,12 @@ export function MobileAgentView() {
     setProducts(result.products, result.productDescription);
   }, [setProducts]);
 
-  // Determine header variant based on current screen
-  const headerVariant = state.currentScreen === "chat_idle" ? "idle" : "active";
-
   const renderScreen = () => {
     switch (state.currentScreen) {
-      case "chat_idle":
+      case "chat":
+      case "product_detail":
         return (
-          <ChatIdleScreen
-            queryText={state.queryText}
-            onQueryChange={setQuery}
-            onSubmit={handleSubmit}
-            messages={state.messages}
-          />
-        );
-
-      case "chat_active":
-        return (
-          <ChatActiveScreen
+          <ChatScreen
             queryText={state.queryText}
             onQueryChange={setQuery}
             onSubmit={handleSubmit}
@@ -103,37 +91,16 @@ export function MobileAgentView() {
           <PlaceholderScreen title={state.currentScreen.replace(/_/g, " ")} />
         );
 
-      case "product_detail":
-        return null; // Rendered as overlay
-
       default:
         return null;
     }
   };
 
-  // For product_detail, we render chat_active underneath so the slide-out reveals it
-  const renderBase = () => {
-    if (state.currentScreen === "product_detail") {
-      return (
-        <ChatActiveScreen
-          queryText={state.queryText}
-          onQueryChange={setQuery}
-          onSubmit={handleSubmit}
-          messages={state.messages}
-          onClickTitle={(id: string) => selectProduct(id)}
-          onAnimationComplete={handleAnimationComplete}
-        />
-      );
-    }
-    return renderScreen();
-  };
-
   return (
     <DeviceFrame statusBarVariant="dark">
       <div className="relative flex h-full flex-col" style={{ paddingTop: SAFE_AREA.topInset }}>
-        <Header variant={headerVariant} />
         <div className={`flex min-h-0 flex-1 flex-col ${state.currentScreen === "product_detail" ? "pointer-events-none overflow-hidden" : ""}`}>
-          {renderBase()}
+          {renderScreen()}
         </div>
         {state.currentScreen === "product_detail" && selectedProduct && (
           <ProductDetailScreen

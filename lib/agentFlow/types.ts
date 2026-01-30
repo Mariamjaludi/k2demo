@@ -2,8 +2,7 @@ import type { Product } from "@/components/chat/ProductCard";
 
 /** Screen states for the mobile agent flow */
 export type Screen =
-  | "chat_idle"
-  | "chat_active"
+  | "chat"
   | "results_list"
   | "product_detail"
   | "order_processing"
