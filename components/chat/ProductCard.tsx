@@ -2,22 +2,37 @@
 
 import Image from "next/image";
 
-export interface ProductCardData {
+export enum Retailer {
+  Jarir = "Jarir",
+  Amazon = "Amazon.sa",
+  Noon = "Noon",
+  Extra = "Extra",
+  Lulu = "Lulu",
+}
+
+export interface Product {
   id: string;
   title: string;
-  retailer: string;
+  brand: string;
+  category: string;
+  retailer: Retailer;
   price: number;
   currency: string;
   rating: number;
   reviewCount: number;
-  imageUrl?: string;
-  reviewSummary: string;
-  featureSummary: string;
-  isJarir?: boolean;
+  image_url?: string;
+  availability: {
+    in_stock: boolean;
+    stock_level: number;
+  };
+  delivery: {
+    default_promise: string;
+  };
+  tags?: string[];
 }
 
 interface ProductCardProps {
-  product: ProductCardData;
+  product: Product;
   onClickTitle?: (id: string) => void;
 }
 
@@ -71,18 +86,62 @@ function HighlightedText({ text }: { text: string }) {
   );
 }
 
+function generateReviewSummary(product: Product): string {
+  const summaries: Record<string, string> = {
+    office_supplies:
+      "Customers praise its **reliable quality** and **excellent value** for everyday office use.",
+    school_supplies:
+      "Parents appreciate the **durable construction** and **kid-friendly design** that lasts the school year.",
+    toys_kids_learning:
+      "Reviewers highlight the **educational value** and **engaging activities** that keep children entertained.",
+    arts_crafts:
+      "Artists love the **smooth texture** and **vibrant results** for creative projects.",
+    english_books:
+      "Learners commend the **clear explanations** and **practical exercises** for building language skills.",
+  };
+
+  return (
+    summaries[product.category] ||
+    "Customers consistently rate this product for its **quality** and **reliability**."
+  );
+}
+
+function generateFeatureSummary(product: Product): string {
+  const defaultPromise = product.delivery?.default_promise ?? "";
+
+  const deliveryHighlight = defaultPromise.includes("tomorrow")
+    ? "**next-day delivery** in Riyadh"
+    : "**fast delivery** across Saudi Arabia";
+
+  const summaries: Record<string, string> = {
+    office_supplies: `Features ${deliveryHighlight}.`,
+    school_supplies: `Includes ${deliveryHighlight} with **easy returns** within 14 days.`,
+    toys_kids_learning: `Comes with ${deliveryHighlight} and is **age-appropriate** for safe play.`,
+    arts_crafts: `Offers ${deliveryHighlight} with **premium materials** for lasting creations.`,
+    english_books: `Available with ${deliveryHighlight} from **trusted publishers** with quality content.`,
+  };
+
+  return (
+    summaries[product.category] ||
+    `Features ${deliveryHighlight} and **quality guarantee** from ${product.retailer}.`
+  );
+}
+
 export function ProductCard({ product, onClickTitle }: ProductCardProps) {
+  const reviewSummary = generateReviewSummary(product);
+  const featureSummary = generateFeatureSummary(product);
+
   return (
     <div className="py-3">
       {/* Main row: image, info */}
       <div className="flex items-center gap-3">
-        <div className={`product-thumbnail h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ${!product.imageUrl ? "flex items-center justify-center" : ""}`}>
+        <div className={`product-thumbnail h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ${!product.image_url ? "flex items-center justify-center" : ""}`}>
           <Image
-            src={product.imageUrl ?? "/product-list-card-image-placeholder.svg"}
-            alt={product.imageUrl ? product.title : "No image available"}
+            src={product.image_url ?? "/product-list-card-image-placeholder.svg"}
+            alt={product.image_url ? product.title : "No image available"}
             width={64}
             height={64}
-            className={product.imageUrl ? "h-full w-full object-cover" : "h-6 w-6"}
+            className={product.image_url ? "h-full w-full object-cover" : "h-6 w-6"}
             unoptimized
           />
         </div>
@@ -92,7 +151,7 @@ export function ProductCard({ product, onClickTitle }: ProductCardProps) {
             type="button"
             aria-haspopup="dialog"
             onClick={() => onClickTitle?.(product.id)}
-            className="product-title block max-w-full text-left text-sm font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 focus:outline-none"
+            className="product-title block max-w-full text-left text-sm font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 rounded-sm"
           >
             {product.title}
           </button>
@@ -115,13 +174,13 @@ export function ProductCard({ product, onClickTitle }: ProductCardProps) {
         <li className="reviews-summary flex gap-2">
           <span className="shrink-0 text-zinc-400">•</span>
           <span>
-            <HighlightedText text={product.reviewSummary} />
+            <HighlightedText text={reviewSummary} />
           </span>
         </li>
         <li className="feature-summary flex gap-2">
           <span className="shrink-0 text-zinc-400">•</span>
           <span>
-            <HighlightedText text={product.featureSummary} />
+            <HighlightedText text={featureSummary} />
           </span>
         </li>
       </ul>

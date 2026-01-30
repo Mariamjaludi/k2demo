@@ -7,5 +7,6 @@ export { ActiveChatInput } from "./ActiveChatInput";
 export { ChatActiveScreen } from "./ChatActiveScreen";
 export { ChatMessage, ChatMessagesList } from "./ChatMessage";
 export { GlowBar, LoadingIndicator } from "./LoadingIndicators";
-export { ProductCard, type ProductCardData } from "./ProductCard";
+export { ProductCard, Retailer, type Product } from "./ProductCard";
 export { ProductList } from "./ProductList";
+export { ProductDetailScreen } from "./ProductDetailScreen";

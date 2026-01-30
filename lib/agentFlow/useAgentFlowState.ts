@@ -9,14 +9,8 @@ import type {
   CustomerInfo,
   OrderTotals,
 } from "./types";
-import type { ProductCardData } from "@/components/chat/ProductCard";
-
-const VAT_RATE = 0.15;
-const SHIPPING_RIYADH = 10;
-const SHIPPING_OTHER = 20;
-
-/** Round to 2 decimal places (cents) */
-const round2 = (n: number) => Math.round(n * 100) / 100;
+import type { Product } from "@/components/chat/ProductCard";
+import { VAT_RATE, SHIPPING_RIYADH, SHIPPING_OTHER, round2 } from "@/lib/pricing";
 
 /** Initial state for the agent flow */
 const initialState: AgentFlowState = {
@@ -48,7 +42,7 @@ function agentFlowReducer(
       const trimmedQuery = state.queryText.trim();
       if (!trimmedQuery) return state;
       const userMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
+        id: action.payload.messageId,
         role: "user",
         content: trimmedQuery,
         timestamp: Date.now(),
@@ -119,10 +113,10 @@ function agentFlowReducer(
       };
 
     case "BACK_TO_RESULTS":
-      // Navigate back to results list, preserve selection and scroll position, close any modal
+      // Navigate back to chat (results are shown within chat_active), preserve scroll position, close any modal
       return {
         ...state,
-        currentScreen: "results_list",
+        currentScreen: "chat_active",
         modalState: null,
       };
 
@@ -175,17 +169,17 @@ export interface AgentFlowContext {
   state: AgentFlowState;
 
   // Derived values
-  selectedProduct: ProductCardData | null;
+  selectedProduct: Product | null;
   totals: OrderTotals | null;
   canCheckout: boolean;
 
   // Chat actions
   setQuery: (text: string) => void;
-  submitQuery: () => void;
+  submitQuery: (messageId: string) => void;
   addAgentMessage: (content: string) => void;
 
   // Results actions
-  setProducts: (products: ProductCardData[], productDescription: string) => void;
+  setProducts: (products: Product[], productDescription: string) => void;
   saveScrollOffset: (offset: number) => void;
   // Navigation actions
   selectProduct: (productId: string) => void;
@@ -254,8 +248,8 @@ export function useAgentFlowState(): AgentFlowContext {
     dispatch({ type: "SET_QUERY", payload: text });
   }, []);
 
-  const submitQuery = useCallback(() => {
-    dispatch({ type: "SUBMIT_QUERY" });
+  const submitQuery = useCallback((messageId: string) => {
+    dispatch({ type: "SUBMIT_QUERY", payload: { messageId } });
   }, []);
 
   const addAgentMessage = useCallback((content: string) => {
@@ -268,7 +262,7 @@ export function useAgentFlowState(): AgentFlowContext {
     dispatch({ type: "ADD_MESSAGE", payload: message });
   }, []);
 
-  const setProducts = useCallback((products: ProductCardData[], productDescription: string) => {
+  const setProducts = useCallback((products: Product[], productDescription: string) => {
     dispatch({ type: "SET_PRODUCTS", payload: { products, productDescription } });
   }, []);
 

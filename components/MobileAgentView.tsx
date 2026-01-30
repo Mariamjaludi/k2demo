@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { DeviceFrame, SAFE_AREA } from "./DeviceFrame";
-import { ChatIdleScreen, ChatActiveScreen, Header } from "./chat";
+import { ChatIdleScreen, ChatActiveScreen, Header, ProductDetailScreen } from "./chat";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { useAgentFlowState } from "@/lib/agentFlow";
 import { fetchProducts, type FetchProductsResult } from "@/lib/productClient";
@@ -16,9 +16,13 @@ interface PendingFetch {
 export function MobileAgentView() {
   const {
     state,
+    selectedProduct,
     setQuery,
     submitQuery,
     setProducts,
+    selectProduct,
+    backToResults,
+    startOrderProcessing,
   } = useAgentFlowState();
 
   // Holds the in-flight fetch promise paired with the triggering message ID
@@ -42,7 +46,7 @@ export function MobileAgentView() {
     };
 
     // Adds user message and transitions to chat_active
-    submitQuery();
+    submitQuery(messageId);
   }, [state.queryText, submitQuery]);
 
   const handleAnimationComplete = useCallback(async () => {
@@ -86,30 +90,58 @@ export function MobileAgentView() {
             onQueryChange={setQuery}
             onSubmit={handleSubmit}
             messages={state.messages}
-            onClickTitle={() => {/* TODO: open product detail modal */}}
+            onClickTitle={(id: string) => selectProduct(id)}
             onAnimationComplete={handleAnimationComplete}
           />
         );
 
       // Placeholder screens for now
       case "results_list":
-      case "product_detail":
       case "order_processing":
       case "order_complete":
         return (
           <PlaceholderScreen title={state.currentScreen.replace(/_/g, " ")} />
         );
 
+      case "product_detail":
+        return null; // Rendered as overlay
+
       default:
         return null;
     }
   };
 
+  // For product_detail, we render chat_active underneath so the slide-out reveals it
+  const renderBase = () => {
+    if (state.currentScreen === "product_detail") {
+      return (
+        <ChatActiveScreen
+          queryText={state.queryText}
+          onQueryChange={setQuery}
+          onSubmit={handleSubmit}
+          messages={state.messages}
+          onClickTitle={(id: string) => selectProduct(id)}
+          onAnimationComplete={handleAnimationComplete}
+        />
+      );
+    }
+    return renderScreen();
+  };
+
   return (
     <DeviceFrame statusBarVariant="dark">
-      <div className="flex h-full flex-col" style={{ paddingTop: SAFE_AREA.topInset }}>
+      <div className="relative flex h-full flex-col" style={{ paddingTop: SAFE_AREA.topInset }}>
         <Header variant={headerVariant} />
-        {renderScreen()}
+        <div className={`flex min-h-0 flex-1 flex-col ${state.currentScreen === "product_detail" ? "pointer-events-none overflow-hidden" : ""}`}>
+          {renderBase()}
+        </div>
+        {state.currentScreen === "product_detail" && selectedProduct && (
+          <ProductDetailScreen
+            product={selectedProduct}
+            onClose={backToResults}
+            onBuy={startOrderProcessing}
+          />
+        )}
       </div>
     </DeviceFrame>
   );

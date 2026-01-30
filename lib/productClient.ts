@@ -1,48 +1,23 @@
-import type { Product } from "./agentFlow/types";
-import type { ProductCardData } from "@/components/chat/ProductCard";
+import { Retailer, type Product } from "@/components/chat/ProductCard";
+import amazonCatalog from "./data/amazon-catalog.json";
+import noonCatalog from "./data/noon-catalog.json";
+import extraCatalog from "./data/extra-catalog.json";
 
-// Mock competitor data - these would come from competitor APIs in production
-const MOCK_COMPETITORS: ProductCardData[] = [
-  {
-    id: "comp_amazon_1",
-    title: "AmazonBasics Copy Paper A4 – 500 Sheets",
-    retailer: "Amazon.sa",
-    price: 28,
-    currency: "SAR",
-    rating: 4.6,
-    reviewCount: 3200,
-    reviewSummary:
-      "Customers highlight the **consistent quality** and **smooth printing performance** across inkjet and laser printers.",
-    featureSummary:
-      "Features **92 brightness rating** and **20lb weight**, compatible with all standard office equipment.",
-  },
-  {
-    id: "comp_noon_1",
-    title: "Double A Premium Paper A4 – 500 Sheets",
-    retailer: "Noon",
-    price: 32,
-    currency: "SAR",
-    rating: 4.7,
-    reviewCount: 1850,
-    reviewSummary:
-      "Reviewers praise the **jam-free performance** and **professional finish** for important documents.",
-    featureSummary:
-      "Made from **sustainable farmed trees** with **high opacity** to prevent show-through on double-sided prints.",
-  },
-  {
-    id: "comp_extra_1",
-    title: "Navigator Universal Paper A4 – 500 Sheets",
-    retailer: "Extra",
-    price: 35,
-    currency: "SAR",
-    rating: 4.5,
-    reviewCount: 920,
-    reviewSummary:
-      "Users appreciate the **ultra-smooth surface** and **excellent color reproduction** for presentations.",
-    featureSummary:
-      "Premium **169 CIE whiteness** paper with **Colorlok technology** for faster drying and bolder colors.",
-  },
-];
+const VALID_RETAILERS = new Set<string>(Object.values(Retailer));
+
+function toCompetitorProduct(raw: Record<string, unknown>): Product | null {
+  const retailer = typeof raw.retailer === "string" && VALID_RETAILERS.has(raw.retailer)
+    ? (raw.retailer as Retailer)
+    : null;
+  if (!retailer) return null;
+  return { ...(raw as Omit<Product, "retailer">), retailer };
+}
+
+const MOCK_COMPETITORS: Product[] = [
+  ...amazonCatalog,
+  ...noonCatalog,
+  ...extraCatalog,
+].map(toCompetitorProduct).filter((p): p is Product => p !== null);
 
 const FILLER_WORDS = new Set([
   "i", "im", "i'm", "am", "looking", "for", "a", "an", "the", "some",
@@ -74,7 +49,7 @@ function extractProductDescription(query: string): string {
 /**
  * Calculate relevance score for a product based on search terms
  */
-function calculateRelevance(product: ProductCardData, searchTerms: string[]): number {
+function calculateRelevance(product: Product, searchTerms: string[]): number {
   if (searchTerms.length === 0) return 0;
 
   let score = 0;
@@ -99,7 +74,7 @@ function calculateRelevance(product: ProductCardData, searchTerms: string[]): nu
 /**
  * Sort products by relevance, with Jarir priority for ties
  */
-function sortByRelevance(products: ProductCardData[], searchTerms: string[]): ProductCardData[] {
+function sortByRelevance(products: Product[], searchTerms: string[]): Product[] {
   if (searchTerms.length === 0) {
     return products;
   }
@@ -107,7 +82,7 @@ function sortByRelevance(products: ProductCardData[], searchTerms: string[]): Pr
   const scored = products.map(product => ({
     product,
     relevance: calculateRelevance(product, searchTerms),
-    isJarir: product.isJarir ?? false,
+    isJarir: product.retailer === Retailer.Jarir,
   }));
 
   scored.sort((a, b) => {
@@ -123,66 +98,109 @@ function sortByRelevance(products: ProductCardData[], searchTerms: string[]): Pr
   return scored.map(s => s.product);
 }
 
-function generateReviewSummary(product: Product): string {
-  const summaries: Record<string, string> = {
-    office_supplies:
-      "Customers praise its **reliable quality** and **excellent value** for everyday office use.",
-    school_supplies:
-      "Parents appreciate the **durable construction** and **kid-friendly design** that lasts the school year.",
-    toys_kids_learning:
-      "Reviewers highlight the **educational value** and **engaging activities** that keep children entertained.",
-    arts_crafts:
-      "Artists love the **smooth texture** and **vibrant results** for creative projects.",
-    english_books:
-      "Learners commend the **clear explanations** and **practical exercises** for building language skills.",
+/**
+ * Assign tags to products based on comparative analysis of the list.
+ * - "Best price" → lowest price product
+ * - "Top rated" → highest rating product
+ * - "Fastest delivery" → product with the fastest delivery promise
+ * - "Free gift with purchase" / "Best value bundle" → mock bundle offerings for Jarir
+ */
+function tagProducts(products: Product[]): Product[] {
+  if (products.length === 0) return products;
+
+  // Find best price
+  let bestPriceId: string | null = null;
+  let lowestPrice = Infinity;
+  for (const p of products) {
+    if (p.price < lowestPrice) {
+      lowestPrice = p.price;
+      bestPriceId = p.id;
+    }
+  }
+
+  // Find top rated
+  let topRatedId: string | null = null;
+  let highestRating = -1;
+  for (const p of products) {
+    if (p.rating > highestRating) {
+      highestRating = p.rating;
+      topRatedId = p.id;
+    }
+  }
+
+  // Find fastest delivery based on promise text
+  const deliverySpeed = (promise: string): number => {
+    const lower = promise.toLowerCase();
+    if (lower.includes("today")) return 0;
+    if (lower.includes("tomorrow")) return 1;
+    if (lower.includes("1–2 days") || lower.includes("1-2 days")) return 2;
+    if (lower.includes("2–3 days") || lower.includes("2-3 days")) return 3;
+    return 4;
   };
 
-  return (
-    summaries[product.category] ||
-    "Customers consistently rate this product for its **quality** and **reliability**."
-  );
+  let fastestDeliveryId: string | null = null;
+  let fastestSpeed = Infinity;
+  for (const p of products) {
+    const speed = deliverySpeed(p.delivery?.default_promise ?? "");
+    if (speed < fastestSpeed) {
+      fastestSpeed = speed;
+      fastestDeliveryId = p.id;
+    }
+  }
+
+  return products.map(p => {
+    const tags: string[] = [];
+
+    if (p.id === bestPriceId) tags.push("Best price");
+    if (p.id === topRatedId) tags.push("Top rated");
+    if (p.id === fastestDeliveryId) tags.push("Fastest delivery");
+
+    // Jarir products may have bundle offerings
+    if (p.retailer === Retailer.Jarir) {
+      if (p.category === "office_supplies" || p.category === "school_supplies") {
+        tags.push("Best value bundle");
+      } else {
+        tags.push("Free gift with purchase");
+      }
+    }
+
+    return { ...p, tags };
+  });
 }
 
-function generateFeatureSummary(product: Product): string {
-  const defaultPromise = product.delivery?.default_promise ?? "";
-
-  const deliveryHighlight = defaultPromise.includes("tomorrow")
-    ? "**next-day delivery** in Riyadh"
-    : "**fast delivery** across Saudi Arabia";
-
-  const summaries: Record<string, string> = {
-    office_supplies: `Features ${deliveryHighlight}.`,
-    school_supplies: `Includes ${deliveryHighlight} with **easy returns** within 14 days.`,
-    toys_kids_learning: `Comes with ${deliveryHighlight} and is **age-appropriate** for safe play.`,
-    arts_crafts: `Offers ${deliveryHighlight} with **premium materials** for lasting creations.`,
-    english_books: `Available with ${deliveryHighlight} from **trusted publishers** with quality content.`,
-  };
-
-  return (
-    summaries[product.category] ||
-    `Features ${deliveryHighlight} and **quality guarantee** from Jarir.`
-  );
+/** Catalog item shape returned by the /api/products endpoint */
+interface CatalogItem {
+  id: string;
+  title: string;
+  brand: string;
+  category: string;
+  price: number;
+  currency: "SAR";
+  image_url?: string;
+  availability: { in_stock: boolean; stock_level: number };
+  delivery: { default_promise: string };
 }
 
 /**
- * Convert a Jarir Product to ProductCardData
+ * Convert a catalog item to a Product
  */
-function toProductCardData(product: Product): ProductCardData {
+function toProduct(item: CatalogItem): Product {
   const rating = 4.5 + Math.random() * 0.4;
   const reviewCount = Math.floor(500 + Math.random() * 2000);
 
   return {
-    id: product.id,
-    title: product.title,
-    retailer: "Jarir",
-    price: product.price,
-    currency: product.currency,
+    id: item.id,
+    title: item.title,
+    brand: item.brand,
+    category: item.category,
+    retailer: Retailer.Jarir,
+    price: item.price,
+    currency: item.currency,
     rating: Math.round(rating * 10) / 10,
     reviewCount,
-    imageUrl: product.image_url,
-    reviewSummary: generateReviewSummary(product),
-    featureSummary: generateFeatureSummary(product),
-    isJarir: true,
+    image_url: item.image_url,
+    availability: item.availability,
+    delivery: item.delivery,
   };
 }
 
@@ -192,7 +210,7 @@ export interface FetchProductsOptions {
 }
 
 export interface FetchProductsResult {
-  products: ProductCardData[];
+  products: Product[];
   searchTerms: string[];
   /** Clean product description for display (e.g., "paper", "macbook keyboard") */
   productDescription: string;
@@ -224,17 +242,18 @@ export async function fetchProducts(options: FetchProductsOptions): Promise<Fetc
     }
     const data = await response.json();
 
-    // Convert Jarir products to card data
-    const jarirProducts: ProductCardData[] = (data.items || []).map(toProductCardData);
+    // Convert catalog items to Product
+    const jarirProducts: Product[] = (data.items || []).map(toProduct);
 
     // Combine with mock competitors
     const allProducts = [...jarirProducts, ...MOCK_COMPETITORS];
 
-    // Sort by relevance
+    // Sort by relevance, then assign tags
     const sortedProducts = sortByRelevance(allProducts, searchTerms);
+    const taggedProducts = tagProducts(sortedProducts);
 
     return {
-      products: sortedProducts,
+      products: taggedProducts,
       searchTerms,
       productDescription,
     };
@@ -243,9 +262,10 @@ export async function fetchProducts(options: FetchProductsOptions): Promise<Fetc
 
     // Return just competitors on error, sorted by relevance
     const sortedCompetitors = sortByRelevance(MOCK_COMPETITORS, searchTerms);
+    const taggedCompetitors = tagProducts(sortedCompetitors);
 
     return {
-      products: sortedCompetitors,
+      products: taggedCompetitors,
       searchTerms,
       productDescription,
     };

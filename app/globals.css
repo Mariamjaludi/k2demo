@@ -80,6 +80,33 @@ body {
   animation: glow-color-fade 4s ease-in-out infinite;
 }
 
+/* Product detail slide animations */
+@keyframes slide-in-from-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slide-out-to-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.animate-slide-in-left {
+  animation: slide-in-from-right 0.3s ease-out forwards;
+}
+
+.animate-slide-out-right {
+  animation: slide-out-to-right 0.3s ease-in forwards;
+}
+
 /* Hide scrollbar utility */
 .scrollbar-none {
   -ms-overflow-style: none;

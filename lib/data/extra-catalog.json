@@ -1,0 +1,15 @@
+[
+  {
+    "id": "comp_extra_1",
+    "title": "Navigator Universal Paper A4 – 500 Sheets",
+    "brand": "Navigator",
+    "category": "office_supplies",
+    "retailer": "Extra",
+    "price": 35,
+    "currency": "SAR",
+    "rating": 4.5,
+    "reviewCount": 920,
+    "availability": { "in_stock": true, "stock_level": 150 },
+    "delivery": { "default_promise": "Deliver in 2–3 days" }
+  }
+]

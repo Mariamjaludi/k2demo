@@ -1,9 +1,9 @@
 "use client";
 
-import { ProductCard, type ProductCardData } from "./ProductCard";
+import { ProductCard, type Product } from "./ProductCard";
 
 interface ProductListProps {
-  products: ProductCardData[];
+  products: Product[];
   onClickTitle?: (id: string) => void;
 }
 

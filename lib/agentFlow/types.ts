@@ -1,7 +1,4 @@
-import type { ProductCardData } from "@/components/chat/ProductCard";
-
-/** Reexport for convenience */
-export type { ProductCardData };
+import type { Product } from "@/components/chat/ProductCard";
 
 /** Screen states for the mobile agent flow */
 export type Screen =
@@ -22,26 +19,8 @@ export interface ChatMessage {
   content: string;
   timestamp: number;
   /** When present, this agent message carries product results */
-  products?: ProductCardData[];
+  products?: Product[];
   productDescription?: string;
-}
-
-/** Product from search results */
-export interface Product {
-  id: string;
-  title: string;
-  brand: string;
-  category: string;
-  price: number;
-  currency: "SAR";
-  availability: {
-    in_stock: boolean;
-    stock_level: number;
-  };
-  delivery: {
-    default_promise: string;
-  };
-  image_url?: string;
 }
 
 /** Order totals */
@@ -82,7 +61,7 @@ export interface AgentFlowState {
   // Results
   resultsScrollOffset: number;
   /** Cache of all products seen (including competitors), keyed by id */
-  productsById: Record<string, ProductCardData>;
+  productsById: Record<string, Product>;
 
   // Selection
   selectedProductId: string | null;
@@ -103,12 +82,12 @@ export interface AgentFlowState {
 export type AgentFlowAction =
   // Chat actions
   | { type: "SET_QUERY"; payload: string }
-  | { type: "SUBMIT_QUERY" }
+  | { type: "SUBMIT_QUERY"; payload: { messageId: string } }
   | { type: "ADD_MESSAGE"; payload: ChatMessage }
   | { type: "SET_LOADING" }
 
   // Results actions
-  | { type: "SET_PRODUCTS"; payload: { products: ProductCardData[]; productDescription: string } }
+  | { type: "SET_PRODUCTS"; payload: { products: Product[]; productDescription: string } }
   | { type: "SAVE_SCROLL_OFFSET"; payload: number }
 
   // Navigation actions

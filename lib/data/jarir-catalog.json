@@ -6,7 +6,7 @@
     "category": "office_supplies",
     "price": 25,
     "currency": "SAR",
-    "image_url": "https://your-cdn/roco-a4-paper.png",
+    "image_url": "/roco-paper.jpg",
     "attributes": {
       "type": "copy paper",
       "size": "A4",
