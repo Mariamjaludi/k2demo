@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { GoogleLogo } from "./GoogleLogo";
 import { Retailer, RETAILER_LOGOS } from "./ProductCard";
@@ -34,11 +34,21 @@ export function CreateAccountModal({ retailerName, onClose, onContinue }: Create
   const initial = retailerName.charAt(0).toUpperCase();
   const sheetRef = useRef<HTMLDivElement>(null);
   const continueRef = useRef<HTMLButtonElement>(null);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
   const [expandedRow, setExpandedRow] = useState<number | null>(null);
+  const [closing, setClosing] = useState(false);
 
-  // Autofocus Continue button on mount
+  const handleClose = useCallback(() => {
+    if (closing) return;
+    setClosing(true);
+    setTimeout(onClose, 250);
+  }, [closing, onClose]);
+
+  // Autofocus Continue button on mount, restore focus on unmount
   useEffect(() => {
+    returnFocusRef.current = document.activeElement as HTMLElement | null;
     continueRef.current?.focus();
+    return () => returnFocusRef.current?.focus();
   }, []);
 
   // Trap focus inside the dialog
@@ -48,7 +58,7 @@ export function CreateAccountModal({ retailerName, onClose, onContinue }: Create
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        onClose();
+        handleClose();
         return;
       }
       if (e.key !== "Tab") return;
@@ -61,6 +71,13 @@ export function CreateAccountModal({ retailerName, onClose, onContinue }: Create
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
 
+      // If focus is outside the sheet, pull it back
+      if (!sheet.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+        return;
+      }
+
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
@@ -72,16 +89,13 @@ export function CreateAccountModal({ retailerName, onClose, onContinue }: Create
 
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [handleClose]);
 
   return (
     <div
-      className="absolute inset-0 z-30 flex flex-col bg-black/40 backdrop-blur-sm"
+      className={`absolute inset-0 z-30 flex flex-col backdrop-blur-sm transition-colors duration-250 ${closing ? "bg-black/0" : "bg-black/40"}`}
       style={{ borderRadius: "inherit" }}
-      onClick={onClose}
-      role="button"
-      tabIndex={-1}
-      aria-label="Close modal"
+      onClick={handleClose}
     >
       {/* Modal sheet */}
       <div
@@ -89,7 +103,7 @@ export function CreateAccountModal({ retailerName, onClose, onContinue }: Create
         role="dialog"
         aria-modal="true"
         aria-labelledby="create-account-title"
-        className="relative mt-auto flex max-h-[75%] flex-col rounded-t-2xl bg-white animate-sheet-in"
+        className={`relative mt-auto flex max-h-[75%] flex-col rounded-t-2xl bg-white ${closing ? "animate-sheet-out" : "animate-sheet-in"}`}
         onClick={(e) => e.stopPropagation()}
         style={{ paddingBottom: SAFE_AREA.bottom }}
       >
@@ -102,7 +116,7 @@ export function CreateAccountModal({ retailerName, onClose, onContinue }: Create
         <div className="flex justify-end px-4 pt-2">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             aria-label="Close"
             className="flex h-7 w-7 items-center justify-center text-zinc-500"
           >
@@ -221,7 +235,7 @@ export function CreateAccountModal({ retailerName, onClose, onContinue }: Create
               <span className="text-blue-600">share data safely</span>.
             </p>
             <p>
-              Review Google&apos;s{" "}
+              Google&apos;s{" "}
               <span className="text-blue-600">Privacy Policy</span> and{" "}
               <span className="text-blue-600">Terms of Service</span> to
               understand how Google will process and protect your data.

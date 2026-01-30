@@ -126,10 +126,7 @@ export function CheckoutSummaryModal({
   const handleClose = useCallback(() => {
     if (closing) return;
     setClosing(true);
-  }, [closing]);
-
-  const handleAnimationEnd = useCallback(() => {
-    if (closing) onClose();
+    setTimeout(onClose, 250);
   }, [closing, onClose]);
 
   // Autofocus CTA on mount, restore focus on unmount
@@ -193,7 +190,6 @@ export function CheckoutSummaryModal({
         aria-labelledby="checkout-summary-title"
         className={`relative mt-auto flex max-h-[80%] flex-col rounded-t-2xl bg-white ${closing ? "animate-sheet-out" : "animate-sheet-in"}`}
         onClick={(e) => e.stopPropagation()}
-        onAnimationEnd={handleAnimationEnd}
         style={{ paddingBottom: SAFE_AREA.bottom }}
       >
         {/* Drag handle */}
