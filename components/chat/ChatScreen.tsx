@@ -102,7 +102,7 @@ function ProductResultMessage({
   onClickTitle?: (id: string) => void;
 }) {
   return (
-    <div className="mt-4 px-4 animate-in fade-in duration-300">
+    <div className="mt-4 px-4 animate-fade-in">
       <AISummary productDescription={message.productDescription} />
       <ResultsHeader />
       <ProductList

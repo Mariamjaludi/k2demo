@@ -10,6 +10,14 @@ export enum Retailer {
   Lulu = "Lulu",
 }
 
+export const RETAILER_LOGOS: Partial<Record<Retailer, string>> = {
+  [Retailer.Jarir]: "/jarirLogo.svg",
+  [Retailer.Amazon]: "/amazonLogo.svg",
+  [Retailer.Noon]: "/noonLogo.svg",
+  [Retailer.Extra]: "/extraLogo.svg",
+  [Retailer.Lulu]: "/luluLogo.svg",
+};
+
 export interface Product {
   id: string;
   title: string;
@@ -17,7 +25,7 @@ export interface Product {
   category: string;
   retailer: Retailer;
   price: number;
-  currency: string;
+  currency: "SAR";
   rating: number;
   reviewCount: number;
   image_url?: string;

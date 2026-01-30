@@ -5,6 +5,7 @@ export { ChatScreen } from "./ChatScreen";
 export { TabRow } from "./TabRow";
 export { ChatMessage, ChatMessagesList } from "./ChatMessage";
 export { GlowBar, LoadingIndicator } from "./LoadingIndicators";
-export { ProductCard, Retailer, type Product } from "./ProductCard";
+export { ProductCard, Retailer, RETAILER_LOGOS, type Product } from "./ProductCard";
 export { ProductList } from "./ProductList";
 export { ProductDetailScreen } from "./ProductDetailScreen";
+export { CreateAccountModal } from "./CreateAccountModal";

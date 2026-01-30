@@ -81,9 +81,8 @@ export interface AgentFlowState {
 export type AgentFlowAction =
   // Chat actions
   | { type: "SET_QUERY"; payload: string }
-  | { type: "SUBMIT_QUERY"; payload: { messageId: string } }
+  | { type: "SUBMIT_QUERY"; payload: { messageId: string; timestamp: number } }
   | { type: "ADD_MESSAGE"; payload: ChatMessage }
-  | { type: "SET_LOADING" }
 
   // Results actions
   | { type: "SET_PRODUCTS"; payload: { products: Product[]; productDescription: string } }

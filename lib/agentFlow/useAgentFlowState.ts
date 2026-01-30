@@ -45,7 +45,7 @@ function agentFlowReducer(
         id: action.payload.messageId,
         role: "user",
         content: trimmedQuery,
-        timestamp: Date.now(),
+        timestamp: action.payload.timestamp,
       };
       return {
         ...state,
@@ -66,9 +66,6 @@ function agentFlowReducer(
         ...state,
         messages: [...state.messages, action.payload],
       };
-
-    case "SET_LOADING":
-      return { ...state, currentScreen: "chat" };
 
     // ─── Results Actions ──────────────────────────────────────────────
     case "SET_PRODUCTS": {
@@ -121,6 +118,7 @@ function agentFlowReducer(
       };
 
     case "OPEN_MODAL":
+      if (state.currentScreen !== "product_detail") return state;
       return { ...state, modalState: action.payload };
 
     case "CLOSE_MODAL":
@@ -175,7 +173,7 @@ export interface AgentFlowContext {
 
   // Chat actions
   setQuery: (text: string) => void;
-  submitQuery: (messageId: string) => void;
+  submitQuery: (messageId: string, timestamp: number) => void;
   addAgentMessage: (content: string) => void;
 
   // Results actions
@@ -225,7 +223,7 @@ export function useAgentFlowState(): AgentFlowContext {
       vat,
       vatRate: VAT_RATE,
       total,
-      currency: selectedProduct.currency as "SAR",
+      currency: selectedProduct.currency,
     };
   }, [selectedProduct, state.quantity, state.customer?.address]);
 
@@ -248,8 +246,8 @@ export function useAgentFlowState(): AgentFlowContext {
     dispatch({ type: "SET_QUERY", payload: text });
   }, []);
 
-  const submitQuery = useCallback((messageId: string) => {
-    dispatch({ type: "SUBMIT_QUERY", payload: { messageId } });
+  const submitQuery = useCallback((messageId: string, timestamp: number) => {
+    dispatch({ type: "SUBMIT_QUERY", payload: { messageId, timestamp } });
   }, []);
 
   const addAgentMessage = useCallback((content: string) => {

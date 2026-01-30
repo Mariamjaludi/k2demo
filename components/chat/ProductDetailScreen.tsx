@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Retailer, type Product } from "./ProductCard";
+import { Retailer, RETAILER_LOGOS, type Product } from "./ProductCard";
 import { SHIPPING_RIYADH, round2 } from "@/lib/pricing";
 
 interface ProductDetailScreenProps {
   product: Product;
   onClose: () => void;
   onBuy: () => void;
+  disabled?: boolean;
 }
 
 function getShippingCost(product: Product): number {
@@ -113,14 +114,6 @@ function Tag({ label }: { label: string }) {
   );
 }
 
-const RETAILER_LOGOS: Partial<Record<Retailer, string>> = {
-  [Retailer.Jarir]: "/jarirLogo.svg",
-  [Retailer.Amazon]: "/amazonLogo.svg",
-  [Retailer.Noon]: "/noonLogo.svg",
-  [Retailer.Extra]: "/extraLogo.svg",
-  [Retailer.Lulu]: "/luluLogo.svg",
-};
-
 function RetailerLogo({ retailer }: { retailer: Retailer }) {
   const logo = RETAILER_LOGOS[retailer];
   if (logo) {
@@ -143,7 +136,7 @@ function RetailerLogo({ retailer }: { retailer: Retailer }) {
   );
 }
 
-export function ProductDetailScreen({ product, onClose, onBuy }: ProductDetailScreenProps) {
+export function ProductDetailScreen({ product, onClose, onBuy, disabled = false }: ProductDetailScreenProps) {
   const [isClosing, setIsClosing] = useState(false);
 
   const images = product.image_url ? [product.image_url] : [];
@@ -155,16 +148,18 @@ export function ProductDetailScreen({ product, onClose, onBuy }: ProductDetailSc
   const estimatedTotal = round2(product.price + shipping);
 
   const handleClose = useCallback(() => {
+    if (disabled) return;
     setIsClosing(true);
-  }, []);
+  }, [disabled]);
 
   useEffect(() => {
+    if (disabled) return;
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") setIsClosing(true);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [disabled]);
 
   useEffect(() => {
     if (isClosing) {
@@ -177,6 +172,7 @@ export function ProductDetailScreen({ product, onClose, onBuy }: ProductDetailSc
     <div
       className={`absolute inset-0 z-10 bg-white ${isClosing ? "animate-slide-out-right" : "animate-slide-in-left"}`}
       style={{ borderRadius: "inherit" }}
+      aria-hidden={disabled || undefined}
     >
       <div className="scrollbar-none flex h-full flex-col overflow-y-auto">
 

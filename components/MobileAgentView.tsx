@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { DeviceFrame, SAFE_AREA } from "./DeviceFrame";
-import { ChatScreen, ProductDetailScreen } from "./chat";
+import { ChatScreen, ProductDetailScreen, CreateAccountModal } from "./chat";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { useAgentFlowState } from "@/lib/agentFlow";
 import { fetchProducts, type FetchProductsResult } from "@/lib/productClient";
@@ -22,6 +22,8 @@ export function MobileAgentView() {
     setProducts,
     selectProduct,
     backToResults,
+    openModal,
+    closeModal,
     startOrderProcessing,
   } = useAgentFlowState();
 
@@ -36,8 +38,8 @@ export function MobileAgentView() {
     const query = state.queryText.trim();
     if (!query) return;
 
-    // Generate the message ID that SUBMIT_QUERY will use
-    const messageId = `msg-${Date.now()}`;
+    const now = Date.now();
+    const messageId = `msg-${now}`;
 
     // Start fetching immediately, before the animation begins
     pendingFetchRef.current = {
@@ -45,7 +47,7 @@ export function MobileAgentView() {
       promise: fetchProducts({ query }),
     };
 
-    submitQuery(messageId);
+    submitQuery(messageId, now);
   }, [state.queryText, submitQuery]);
 
   const handleAnimationComplete = useCallback(async () => {
@@ -99,15 +101,31 @@ export function MobileAgentView() {
   return (
     <DeviceFrame statusBarVariant="dark">
       <div className="relative flex h-full flex-col" style={{ paddingTop: SAFE_AREA.topInset }}>
-        <div className={`flex min-h-0 flex-1 flex-col ${state.currentScreen === "product_detail" ? "pointer-events-none overflow-hidden" : ""}`}>
+        <div
+          className={`flex min-h-0 flex-1 flex-col ${state.currentScreen === "product_detail" ? "pointer-events-none overflow-hidden" : ""}`}
+          aria-hidden={state.currentScreen === "product_detail" || undefined}
+        >
           {renderScreen()}
         </div>
         {state.currentScreen === "product_detail" && selectedProduct && (
-          <ProductDetailScreen
-            product={selectedProduct}
-            onClose={backToResults}
-            onBuy={startOrderProcessing}
-          />
+          <>
+            <ProductDetailScreen
+              product={selectedProduct}
+              onClose={backToResults}
+              onBuy={() => openModal("create_account")}
+              disabled={state.modalState !== null}
+            />
+            {state.modalState === "create_account" && (
+              <CreateAccountModal
+                retailerName={selectedProduct.retailer}
+                onClose={closeModal}
+                onContinue={() => {
+                  closeModal();
+                  startOrderProcessing();
+                }}
+              />
+            )}
+          </>
         )}
       </div>
     </DeviceFrame>
