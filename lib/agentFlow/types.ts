@@ -1,4 +1,4 @@
-import type { Product } from "@/components/chat/ProductCard";
+import type { Product } from "@/components/product/ProductCard";
 
 /** Screen states for the mobile agent flow */
 export type Screen =

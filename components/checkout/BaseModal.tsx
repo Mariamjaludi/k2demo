@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Retailer, RETAILER_LOGOS } from "./ProductCard";
-import { SAFE_AREA } from "../DeviceFrame";
+import { Retailer, RETAILER_LOGOS } from "@/components/product";
+import { SAFE_AREA } from "@/components/DeviceFrame";
 
 interface BaseModalProps {
   retailer?: Retailer;

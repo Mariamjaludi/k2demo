@@ -150,6 +150,20 @@ body {
   animation: fade-in 0.3s ease-out both;
 }
 
+/* Segmented ring spinner animation */
+@keyframes ring-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-ring-rotate {
+  animation: ring-rotate 4.8s steps(12) infinite;
+}
+
 /* Hide scrollbar utility */
 .scrollbar-none {
   -ms-overflow-style: none;

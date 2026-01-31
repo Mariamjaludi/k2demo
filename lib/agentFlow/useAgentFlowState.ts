@@ -9,7 +9,7 @@ import type {
   CustomerInfo,
   OrderTotals,
 } from "./types";
-import { Retailer, type Product } from "@/components/chat/ProductCard";
+import { Retailer, type Product } from "@/components/product/ProductCard";
 import { VAT_RATE, SHIPPING_RIYADH, SHIPPING_OTHER, round2 } from "@/lib/pricing";
 
 /** Initial state for the agent flow */

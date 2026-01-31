@@ -1,7 +1,7 @@
 [
   {
     "id": "comp_amazon_1",
-    "title": "AmazonBasics Copy Paper A4 – 500 Sheets",
+    "title": "AmazonBasics Copy Paper A4 - 500 Sheets",
     "brand": "AmazonBasics",
     "category": "office_supplies",
     "retailer": "Amazon.sa",
@@ -11,6 +11,6 @@
     "reviewCount": 3200,
     "image_url": "/amazon-basics-a4-paper.webp",
     "availability": { "in_stock": true, "stock_level": 500 },
-    "delivery": { "default_promise": "Deliver in 2–3 days" }
+    "delivery": { "default_promise": "Deliver in 2-3 days" }
   }
 ]

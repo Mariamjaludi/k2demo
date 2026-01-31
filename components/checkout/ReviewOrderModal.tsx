@@ -2,12 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import Image from "next/image";
-import { Retailer, type Product } from "./ProductCard";
+import { Retailer, type Product, ProductSummaryCard } from "@/components/product";
 import type { OrderTotals } from "@/lib/agentFlow/types";
 import { BaseModal } from "./BaseModal";
 import { CtaButton } from "./CtaButton";
 import { PaySummary } from "./PaySummary";
-import { ProductSummaryCard } from "./ProductSummaryCard";
 
 interface ReviewOrderModalProps {
   product: Product;

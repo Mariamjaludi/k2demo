@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { DeviceFrame, SAFE_AREA } from "./DeviceFrame";
-import { ChatScreen, ProductDetailScreen, CreateAccountModal, CheckoutSummaryModal, ReviewOrderModal } from "./chat";
+import { ChatScreen } from "./chat";
+import { ProductDetailScreen } from "./product";
+import { CreateAccountModal, CheckoutSummaryModal, ReviewOrderModal } from "./checkout";
+import { OrderProcessingScreen, OrderCompleteScreen } from "./order";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { useAgentFlowState } from "@/lib/agentFlow";
 import { fetchProducts, getProductsByRetailer, type FetchProductsResult } from "@/lib/productClient";
@@ -27,6 +30,7 @@ export function MobileAgentView() {
     closeModal,
     setCustomer,
     startOrderProcessing,
+    completeOrder,
   } = useAgentFlowState();
 
   // Holds the in-flight fetch promise paired with the triggering message ID
@@ -93,13 +97,28 @@ export function MobileAgentView() {
           />
         );
 
-      // Placeholder screens for now
       case "results_list":
-      case "order_processing":
-      case "order_complete":
         return (
           <PlaceholderScreen title={state.currentScreen.replace(/_/g, " ")} />
         );
+
+      case "order_processing":
+        return selectedProduct ? (
+          <OrderProcessingScreen
+            product={selectedProduct}
+            onComplete={completeOrder}
+          />
+        ) : null;
+
+      case "order_complete":
+        return selectedProduct && totals && state.orderId && state.customer ? (
+          <OrderCompleteScreen
+            product={selectedProduct}
+            totals={totals}
+            orderId={state.orderId}
+            customer={state.customer}
+          />
+        ) : null;
 
       default:
         return null;
@@ -157,10 +176,7 @@ export function MobileAgentView() {
                 product={selectedProduct}
                 totals={totals}
                 onClose={closeModal}
-                onPay={() => {
-                  closeModal();
-                  startOrderProcessing();
-                }}
+                onPay={() => startOrderProcessing()}
               />
             )}
           </>

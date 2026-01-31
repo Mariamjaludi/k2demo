@@ -1,7 +1,7 @@
 [
   {
     "id": "comp_noon_1",
-    "title": "Double A Premium Paper A4 – 500 Sheets",
+    "title": "Double A Premium Paper A4 - 500 Sheets",
     "brand": "Double A",
     "category": "office_supplies",
     "retailer": "Noon",
@@ -10,6 +10,6 @@
     "rating": 4.7,
     "reviewCount": 1850,
     "availability": { "in_stock": true, "stock_level": 300 },
-    "delivery": { "default_promise": "Deliver in 1–2 days" }
+    "delivery": { "default_promise": "Deliver in 1-2 days" }
   }
 ]

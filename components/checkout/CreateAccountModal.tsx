@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { GoogleLogo } from "./GoogleLogo";
-import { Retailer, RETAILER_LOGOS } from "./ProductCard";
+import { GoogleLogo } from "@/components/chat";
+import { Retailer, RETAILER_LOGOS } from "@/components/product";
 import { BaseModal } from "./BaseModal";
 import { CtaButton } from "./CtaButton";
 

@@ -8,7 +8,7 @@ import { ChatMessagesList } from "./ChatMessage";
 import { TabRow } from "./TabRow";
 import { SAFE_AREA } from "../DeviceFrame";
 import { LoadingIndicator, LoadingPhase } from "./LoadingIndicators";
-import { ProductList } from "./ProductList";
+import { ProductList } from "@/components/product";
 import type { ChatMessage } from "@/lib/agentFlow/types";
 
 interface ChatScreenProps {

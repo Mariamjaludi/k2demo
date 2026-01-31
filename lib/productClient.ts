@@ -1,4 +1,4 @@
-import { Retailer, type Product } from "@/components/chat/ProductCard";
+import { Retailer, type Product } from "@/components/product/ProductCard";
 import amazonCatalog from "./data/amazon-catalog.json";
 import noonCatalog from "./data/noon-catalog.json";
 import extraCatalog from "./data/extra-catalog.json";
