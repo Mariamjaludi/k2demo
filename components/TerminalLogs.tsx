@@ -22,6 +22,8 @@ const LEVEL_COLORS: Record<NonNullable<DemoLogEvent["level"]>, string>  = {
   error: "text-red-400",
 };
 
+type SseStatus = "connecting" | "connected" | "disconnected";
+
 function LogEntry({ log, isExpanded, onToggle }: {
   log: DemoLogEvent;
   isExpanded: boolean;
@@ -62,15 +64,25 @@ function LogEntry({ log, isExpanded, onToggle }: {
   );
 }
 
+const SSE_STATUS_INDICATOR: Record<SseStatus, { color: string; label: string }> = {
+  connecting: { color: "bg-yellow-500", label: "Connecting" },
+  connected: { color: "bg-green-500", label: "Connected" },
+  disconnected: { color: "bg-red-500", label: "Disconnected" },
+};
+
 export function TerminalLogs() {
   const [logs, setLogs] = useState<DemoLogEvent[]>(() => getLogSnapshot());
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [sseStatus, setSseStatus] = useState<SseStatus>("connecting");
   const scrollRef = useRef<HTMLDivElement>(null);
   const shouldAutoScroll = useRef(true);
+  const seenIds = useRef(new Set<string>());
 
-  // Subscribe for live events (with trimming to prevent unbounded growth)
+  // Subscribe to client-side logBus events
   useEffect(() => {
     const unsubscribe = subscribeLogs((event) => {
+      if (seenIds.current.has(event.id)) return;
+      seenIds.current.add(event.id);
       setLogs((prev) => {
         const next = [...prev, event];
         return next.length > MAX_BUFFER_SIZE ? next.slice(-MAX_BUFFER_SIZE) : next;
@@ -80,15 +92,60 @@ export function TerminalLogs() {
     return unsubscribe;
   }, []);
 
-  // Prune expandedIds when logs are trimmed
+  // Subscribe to server-side merchant logs via SSE
   useEffect(() => {
+    const eventSource = new EventSource("/api/logs/stream");
+
+    eventSource.onopen = () => {
+      setSseStatus("connected");
+    };
+
+    eventSource.onmessage = (e) => {
+      try {
+        const event: DemoLogEvent = JSON.parse(e.data);
+        if (seenIds.current.has(event.id)) return;
+        seenIds.current.add(event.id);
+        setLogs((prev) => {
+          const next = [...prev, event];
+          return next.length > MAX_BUFFER_SIZE ? next.slice(-MAX_BUFFER_SIZE) : next;
+        });
+      } catch {
+        // ignore malformed SSE data
+      }
+    };
+
+    eventSource.onerror = () => {
+      // EventSource auto-reconnects. Show disconnected while it retries.
+      if (eventSource.readyState === EventSource.CLOSED) {
+        setSseStatus("disconnected");
+      } else {
+        setSseStatus("connecting");
+      }
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, []);
+
+  // Prune expandedIds and seenIds when logs are trimmed
+  useEffect(() => {
+    const currentIds = new Set(logs.map((l) => l.id));
+
+    // Prune seenIds to match visible logs — prevents unbounded growth
+    if (seenIds.current.size > MAX_BUFFER_SIZE * 2) {
+      const pruned = new Set<string>();
+      for (const id of currentIds) {
+        pruned.add(id);
+      }
+      seenIds.current = pruned;
+    }
+
     // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional sync of derived state
     setExpandedIds((prev) => {
       if (prev.size === 0) return prev;
 
-      const currentIds = new Set(logs.map((l) => l.id));
       let changed = false;
-
       const next = new Set<string>();
       for (const id of prev) {
         if (currentIds.has(id)) next.add(id);
@@ -130,7 +187,12 @@ export function TerminalLogs() {
     clearLogs();
     setLogs([]);
     setExpandedIds(new Set());
+    seenIds.current.clear();
+    // Also clear server-side merchant logs and reset session
+    fetch("/api/logs/clear", { method: "POST" }).catch(() => {});
   }, []);
+
+  const status = SSE_STATUS_INDICATOR[sseStatus];
 
   return (
     <div className="flex h-full flex-col">
@@ -181,8 +243,8 @@ export function TerminalLogs() {
       <div className="flex items-center justify-between border-t border-zinc-800 bg-zinc-900 px-4 py-1.5 text-xs text-zinc-500">
         <span>{logs.length} events</span>
         <span className="flex items-center gap-1">
-          <span className="h-2 w-2 rounded-full bg-green-500" />
-          Connected
+          <span className={`h-2 w-2 rounded-full ${status.color}`} />
+          {status.label}
         </span>
       </div>
     </div>

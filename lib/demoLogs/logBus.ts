@@ -70,7 +70,7 @@ export function getLogSnapshot(): DemoLogEvent[] {
 
 export function clearLogs(): void {
   buffer.length = 0;
-  idCounter = 0; 
+  idCounter = 0;
 }
 
 export function getSubscriberCount(): number {

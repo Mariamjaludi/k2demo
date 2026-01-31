@@ -235,7 +235,7 @@ export function useAgentFlowState(): AgentFlowContext {
       total,
       currency: selectedProduct.currency,
     };
-  }, [selectedProduct, state.quantity, state.customer?.address]);
+  }, [selectedProduct, state.quantity, state.customer]);
 
   const canCheckout = useMemo(() => {
     if (!selectedProduct) return false;
