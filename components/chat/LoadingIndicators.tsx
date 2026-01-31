@@ -1,10 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, type CSSProperties } from "react";
-
-// Timing constants
-const THINKING_MS = 1800;
-const SEARCHING_MS = 5000;
+import { useEffect, useState, type CSSProperties } from "react";
 
 // Badge data - Jarir plus competitors
 const SOURCE_BADGES = [
