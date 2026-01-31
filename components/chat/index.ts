@@ -10,3 +10,4 @@ export { ProductList } from "./ProductList";
 export { ProductDetailScreen } from "./ProductDetailScreen";
 export { CreateAccountModal } from "./CreateAccountModal";
 export { CheckoutSummaryModal } from "./CheckoutSummaryModal";
+export { ReviewOrderModal } from "./ReviewOrderModal";

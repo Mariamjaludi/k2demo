@@ -9,7 +9,7 @@ import type {
   CustomerInfo,
   OrderTotals,
 } from "./types";
-import type { Product } from "@/components/chat/ProductCard";
+import { Retailer, type Product } from "@/components/chat/ProductCard";
 import { VAT_RATE, SHIPPING_RIYADH, SHIPPING_OTHER, round2 } from "@/lib/pricing";
 
 /** Initial state for the agent flow */
@@ -211,8 +211,18 @@ export function useAgentFlowState(): AgentFlowContext {
     if (!selectedProduct) return null;
 
     const subtotal = round2(selectedProduct.price * state.quantity);
-    const isRiyadh = state.customer?.address?.city?.toLowerCase() === "riyadh";
-    const shipping = state.customer?.address ? (isRiyadh ? SHIPPING_RIYADH : SHIPPING_OTHER) : 0;
+
+    // When we have an address, use city-based shipping.
+    // When no address yet (checkout/review modals before address entry),
+    // use retailer-aware defaults: Jarir = free, others = Riyadh rate.
+    let shipping: number;
+    if (state.customer?.address) {
+      const isRiyadh = state.customer.address.city?.toLowerCase() === "riyadh";
+      shipping = isRiyadh ? SHIPPING_RIYADH : SHIPPING_OTHER;
+    } else {
+      shipping = selectedProduct.retailer === Retailer.Jarir ? 0 : SHIPPING_RIYADH;
+    }
+
     const vatBase = round2(subtotal + shipping);
     const vat = round2(vatBase * VAT_RATE);
     const total = round2(vatBase + vat);

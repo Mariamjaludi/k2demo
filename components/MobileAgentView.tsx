@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { DeviceFrame, SAFE_AREA } from "./DeviceFrame";
-import { ChatScreen, ProductDetailScreen, CreateAccountModal, CheckoutSummaryModal } from "./chat";
+import { ChatScreen, ProductDetailScreen, CreateAccountModal, CheckoutSummaryModal, ReviewOrderModal } from "./chat";
 import { PlaceholderScreen } from "./PlaceholderScreen";
 import { useAgentFlowState } from "@/lib/agentFlow";
 import { fetchProducts, getProductsByRetailer, type FetchProductsResult } from "@/lib/productClient";
@@ -17,6 +17,7 @@ export function MobileAgentView() {
   const {
     state,
     selectedProduct,
+    totals,
     setQuery,
     submitQuery,
     setProducts,
@@ -24,6 +25,7 @@ export function MobileAgentView() {
     backToResults,
     openModal,
     closeModal,
+    setCustomer,
     startOrderProcessing,
   } = useAgentFlowState();
 
@@ -128,12 +130,34 @@ export function MobileAgentView() {
                 onContinue={() => openModal("checkout")}
               />
             )}
-            {state.modalState === "checkout" && (
+            {state.modalState === "checkout" && totals && (
               <CheckoutSummaryModal
                 product={selectedProduct}
                 moreFromRetailer={moreFromRetailer}
+                totals={totals}
                 onClose={closeModal}
                 onContinueToCheckout={() => {
+                  setCustomer({
+                    email: "elisa.g.beckett@gmail.com",
+                    name: "Elisa Beckett",
+                    address: {
+                      country: "SA",
+                      city: "Riyadh",
+                      district: "Al Olaya",
+                      address_line1: "2836 Al Olaya District",
+                      postcode: "12211",
+                    },
+                  });
+                  openModal("review_order");
+                }}
+              />
+            )}
+            {state.modalState === "review_order" && totals && (
+              <ReviewOrderModal
+                product={selectedProduct}
+                totals={totals}
+                onClose={closeModal}
+                onPay={() => {
                   closeModal();
                   startOrderProcessing();
                 }}
