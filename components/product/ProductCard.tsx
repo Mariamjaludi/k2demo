@@ -117,7 +117,7 @@ function generateReviewSummary(product: Product): string {
 function generateFeatureSummary(product: Product): string {
   const defaultPromise = product.delivery?.default_promise ?? "";
 
-  const deliveryHighlight = defaultPromise.includes("tomorrow")
+  const deliveryHighlight = defaultPromise.toLowerCase().includes("tomorrow")
     ? "**next-day delivery** in Riyadh"
     : "**fast delivery** across Saudi Arabia";
 
@@ -146,7 +146,8 @@ export function ProductCard({ product, onClickTitle }: ProductCardProps) {
         <div className={`product-thumbnail h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ${!product.image_url ? "flex items-center justify-center" : ""}`}>
           <Image
             src={product.image_url ?? "/product-list-card-image-placeholder.svg"}
-            alt={product.image_url ? product.title : "No image available"}
+            alt={product.image_url ? product.title : ""}
+            aria-hidden={!product.image_url}
             width={64}
             height={64}
             className={product.image_url ? "h-full w-full object-cover" : "h-6 w-6"}

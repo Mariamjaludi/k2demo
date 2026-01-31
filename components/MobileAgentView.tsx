@@ -6,8 +6,9 @@ import { ChatScreen } from "./chat";
 import { ProductDetailScreen } from "./product";
 import { CreateAccountModal, CheckoutSummaryModal, ReviewOrderModal } from "./checkout";
 import { OrderProcessingScreen, OrderCompleteScreen } from "./order";
-import { PlaceholderScreen } from "./PlaceholderScreen";
+
 import { useAgentFlowState } from "@/lib/agentFlow";
+import { DEMO_CUSTOMER } from "@/lib/agentFlow/types";
 import { fetchProducts, getProductsByRetailer, type FetchProductsResult } from "@/lib/productClient";
 
 interface PendingFetch {
@@ -97,11 +98,6 @@ export function MobileAgentView() {
           />
         );
 
-      case "results_list":
-        return (
-          <PlaceholderScreen title={state.currentScreen.replace(/_/g, " ")} />
-        );
-
       case "order_processing":
         return selectedProduct ? (
           <OrderProcessingScreen
@@ -145,6 +141,7 @@ export function MobileAgentView() {
             {state.modalState === "create_account" && (
               <CreateAccountModal
                 retailerName={selectedProduct.retailer}
+                customerEmail={DEMO_CUSTOMER.email}
                 onClose={closeModal}
                 onContinue={() => openModal("checkout")}
               />
@@ -156,17 +153,7 @@ export function MobileAgentView() {
                 totals={totals}
                 onClose={closeModal}
                 onContinueToCheckout={() => {
-                  setCustomer({
-                    email: "elisa.g.beckett@gmail.com",
-                    name: "Elisa Beckett",
-                    address: {
-                      country: "SA",
-                      city: "Riyadh",
-                      district: "Al Olaya",
-                      address_line1: "2836 Al Olaya District",
-                      postcode: "12211",
-                    },
-                  });
+                  setCustomer(DEMO_CUSTOMER);
                   openModal("review_order");
                 }}
               />
@@ -175,6 +162,7 @@ export function MobileAgentView() {
               <ReviewOrderModal
                 product={selectedProduct}
                 totals={totals}
+                customer={DEMO_CUSTOMER}
                 onClose={closeModal}
                 onPay={() => startOrderProcessing()}
               />

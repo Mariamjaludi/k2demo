@@ -38,6 +38,8 @@ function WaveText({ text }: { text: string }) {
 export function OrderProcessingScreen({ product, onComplete }: OrderProcessingScreenProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const finalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
     if (stepIndex < STEPS.length - 1) {
@@ -50,14 +52,9 @@ export function OrderProcessingScreen({ product, onComplete }: OrderProcessingSc
 
     finalTimerRef.current = setTimeout(() => {
       const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
-      onComplete(orderId);
+      onCompleteRef.current(orderId);
     }, STEP_DURATION);
-
-    return () => {
-      if (finalTimerRef.current != null) clearTimeout(finalTimerRef.current);
-      finalTimerRef.current = null;
-    };
-  }, [stepIndex, onComplete]);
+  }, [stepIndex]);
 
   const logoSrc = RETAILER_LOGOS[product.retailer];
   const statusText = STEPS[stepIndex](product.retailer);

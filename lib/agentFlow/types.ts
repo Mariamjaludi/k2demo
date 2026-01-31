@@ -3,7 +3,6 @@ import type { Product } from "@/components/product/ProductCard";
 /** Screen states for the mobile agent flow */
 export type Screen =
   | "chat"
-  | "results_list"
   | "product_detail"
   | "order_processing"
   | "order_complete";
@@ -46,6 +45,22 @@ export interface CustomerInfo {
     postcode?: string;
   };
 }
+
+/** Demo customer used throughout the checkout flow */
+export const DEMO_CUSTOMER: CustomerInfo = {
+  email: "sarah.g.faysal@gmail.com",
+  name: "Sarah Faysal",
+  address: {
+    country: "SA",
+    city: "Riyadh",
+    district: "Al Olaya",
+    address_line1: "2836 Al Olaya District",
+    postcode: "12211",
+  },
+};
+
+/** Demo payment card last 4 digits */
+export const DEMO_CARD_LAST4 = "1234";
 
 /** Complete agent flow state */
 export interface AgentFlowState {

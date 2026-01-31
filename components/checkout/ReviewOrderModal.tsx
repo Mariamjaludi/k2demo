@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import Image from "next/image";
 import { Retailer, type Product, ProductSummaryCard } from "@/components/product";
-import type { OrderTotals } from "@/lib/agentFlow/types";
+import { DEMO_CARD_LAST4, type OrderTotals, type CustomerInfo } from "@/lib/agentFlow/types";
 import { BaseModal } from "./BaseModal";
 import { CtaButton } from "./CtaButton";
 import { PaySummary } from "./PaySummary";
@@ -11,6 +11,7 @@ import { PaySummary } from "./PaySummary";
 interface ReviewOrderModalProps {
   product: Product;
   totals: OrderTotals;
+  customer: CustomerInfo;
   onClose: () => void;
   onPay: () => void;
 }
@@ -89,17 +90,18 @@ function TruckIcon() {
   );
 }
 
-const MOCK_CARD_LAST4 = "1234";
-const MOCK_NAME = "Elisa Beckett";
-const MOCK_ADDRESS_LINE1 = "2836 Al Olaya District";
-const MOCK_ADDRESS_LINE2 = "Riyadh 12211, Saudi Arabia";
-
 export function ReviewOrderModal({
   product,
   totals,
+  customer,
   onClose,
   onPay,
 }: ReviewOrderModalProps) {
+  const displayName = customer.name ?? customer.email;
+  const address = customer.address;
+  const addressLine = address
+    ? `${address.address_line1}, ${address.city} ${address.postcode ?? ""}, Saudi Arabia`.trim()
+    : "";
   const payRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -163,7 +165,7 @@ export function ReviewOrderModal({
           iconRound={false}
           label="Payment method"
           title="Saudi Awwal Bank (SAB)"
-          subtitle={`Visa ··${MOCK_CARD_LAST4}`}
+          subtitle={`Visa ··${DEMO_CARD_LAST4}`}
         />
       </div>
 
@@ -171,8 +173,8 @@ export function ReviewOrderModal({
         <InfoRow
           icon={<LocationIcon />}
           label="Shipping address"
-          title={MOCK_NAME}
-          subtitle={`${MOCK_ADDRESS_LINE1}, ${MOCK_ADDRESS_LINE2}`}
+          title={displayName}
+          subtitle={addressLine}
         />
       </div>
 
