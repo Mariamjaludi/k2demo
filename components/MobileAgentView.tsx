@@ -10,6 +10,8 @@ import { OrderProcessingScreen, OrderCompleteScreen } from "./order";
 import { useAgentFlowState } from "@/lib/agentFlow";
 import { DEMO_CUSTOMER } from "@/lib/agentFlow/types";
 import { fetchProducts, getProductsByRetailer, type FetchProductsResult } from "@/lib/productClient";
+import { createCheckoutSession, updateCheckoutSession, completeCheckoutSession } from "@/lib/checkoutClient";
+import { Retailer } from "@/components/product/ProductCard";
 
 interface PendingFetch {
   /** ID of the user message that triggered this fetch */
@@ -30,9 +32,14 @@ export function MobileAgentView() {
     openModal,
     closeModal,
     setCustomer,
+    setCheckoutSession,
     startOrderProcessing,
     completeOrder,
   } = useAgentFlowState();
+
+  // Holds the checkout session creation promise and resolved ID
+  const checkoutSessionIdRef = useRef<string | null>(null);
+  const checkoutSessionPromiseRef = useRef<Promise<string | null> | null>(null);
 
   // Holds the in-flight fetch promise paired with the triggering message ID
   const pendingFetchRef = useRef<PendingFetch | null>(null);
@@ -103,6 +110,7 @@ export function MobileAgentView() {
           <OrderProcessingScreen
             product={selectedProduct}
             onComplete={completeOrder}
+            checkoutSessionId={checkoutSessionIdRef.current}
           />
         ) : null;
 
@@ -135,7 +143,29 @@ export function MobileAgentView() {
             <ProductDetailScreen
               product={selectedProduct}
               onClose={backToResults}
-              onBuy={() => openModal("create_account")}
+              onBuy={() => {
+                openModal("create_account");
+                // Only Jarir products go through the merchant API — other retailers are external
+                checkoutSessionIdRef.current = null;
+                checkoutSessionPromiseRef.current = null;
+                if (selectedProduct?.retailer === Retailer.Jarir) {
+                  const promise = createCheckoutSession({
+                    productId: selectedProduct.id,
+                    quantity: state.quantity,
+                  }).then((result) => {
+                    const sid = result?.sessionId ?? null;
+                    if (sid) {
+                      checkoutSessionIdRef.current = sid;
+                      setCheckoutSession(sid);
+                    }
+                    return sid;
+                  }).catch((error) => {
+                    console.error("Failed to create checkout session:", error);
+                    return null;
+                  });
+                  checkoutSessionPromiseRef.current = promise;
+                }
+              }}
               disabled={state.modalState !== null}
             />
             {state.modalState === "create_account" && (
@@ -155,6 +185,23 @@ export function MobileAgentView() {
                 onContinueToCheckout={() => {
                   setCustomer(DEMO_CUSTOMER);
                   openModal("review_order");
+                  // Await session creation if still in flight, then update with customer info
+                  const sendUpdate = async () => {
+                    try {
+                      const sid = checkoutSessionIdRef.current
+                        ?? await checkoutSessionPromiseRef.current;
+                      if (sid && DEMO_CUSTOMER.address) {
+                        await updateCheckoutSession({
+                          sessionId: sid,
+                          email: DEMO_CUSTOMER.email,
+                          address: DEMO_CUSTOMER.address,
+                        });
+                      }
+                    } catch (error) {
+                      console.error("Failed to update checkout session:", error);
+                    }
+                  };
+                  sendUpdate();
                 }}
               />
             )}
@@ -164,7 +211,18 @@ export function MobileAgentView() {
                 totals={totals}
                 customer={DEMO_CUSTOMER}
                 onClose={closeModal}
-                onPay={() => startOrderProcessing()}
+                onPay={() => {
+                  startOrderProcessing();
+                  // Await session creation if still in flight, then complete checkout
+                  const sendComplete = async () => {
+                    const sid = checkoutSessionIdRef.current
+                      ?? await checkoutSessionPromiseRef.current;
+                    if (sid) {
+                      completeCheckoutSession(sid);
+                    }
+                  };
+                  sendComplete();
+                }}
               />
             )}
           </>

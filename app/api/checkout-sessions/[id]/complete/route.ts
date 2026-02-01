@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSession, saveSession, CheckoutSession } from "@/lib/checkoutSessionStore";
+import { merchantEmitLog, createCorrelationId } from "@/lib/demoLogs/merchantContext";
 
 const COMPLETION_DELAY_SECONDS = 5;
 
@@ -15,10 +16,27 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const correlationId = createCorrelationId();
   const { id } = await context.params;
   const session = getSession(id);
 
+  merchantEmitLog({
+    category: "agent",
+    event: "agent.checkout_sessions.complete.request",
+    message: `POST /api/checkout-sessions/${id.slice(0, 8)}…/complete`,
+    correlationId,
+    payload: { method: "POST", session_id: id },
+  });
+
   if (!session) {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.complete.error",
+      message: `404 Not Found — session ${id.slice(0, 8)}…`,
+      level: "error",
+      correlationId,
+      payload: { status: 404, error: "Checkout session not found" },
+    });
     return noStoreJson(
       { error: "Checkout session not found" },
       404
@@ -26,6 +44,14 @@ export async function POST(
   }
 
   if (session.status === "completed") {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.complete.error",
+      message: `409 Conflict — session already completed`,
+      level: "error",
+      correlationId,
+      payload: { status: 409, error: "Session already completed" },
+    });
     return noStoreJson(
       { error: "Session already completed", session },
       409
@@ -33,12 +59,27 @@ export async function POST(
   }
 
   if (session.status === "complete_in_progress") {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.complete.response",
+      message: `202 Accepted — completion already in progress`,
+      correlationId,
+      payload: { status: 202, session_id: id, session_status: session.status },
+    });
     return noStoreJson(
       { message: "Completion already in progress", session },
       202
     )
   }
   if (session.status !== "ready_for_complete") {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.complete.error",
+      message: `409 Conflict — cannot complete session with status: ${session.status}`,
+      level: "error",
+      correlationId,
+      payload: { status: 409, error: `Cannot complete session with status: ${session.status}` },
+    });
     return noStoreJson(
       { error: `Cannot complete session with status: ${session.status}` },
       409
@@ -46,6 +87,14 @@ export async function POST(
   }
 
   if (!session.customer?.email || !session.shipping?.address) {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.complete.error",
+      message: `400 Bad Request — Missing customer email or shipping address`,
+      level: "error",
+      correlationId,
+      payload: { status: 400, error: "Missing customer email or shipping address" },
+    });
     return NextResponse.json(
       { error: "Missing customer email or shipping address" },
       { status: 400 }
@@ -62,6 +111,14 @@ export async function POST(
   }
 
   if (paymentMethod !== "mada") {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.complete.error",
+      message: `400 Bad Request — unsupported payment method: ${paymentMethod}`,
+      level: "error",
+      correlationId,
+      payload: { status: 400, error: "Only mada is supported in this demo", payment_method: paymentMethod },
+    });
     return noStoreJson(
       { error: "Only mada is supported in this demo" },
       400
@@ -88,6 +145,22 @@ export async function POST(
   };
 
   saveSession(updatedSession);
+
+  merchantEmitLog({
+    category: "merchant",
+    event: "merchant.checkout_sessions.complete.response",
+    message: `202 Accepted — session ${id.slice(0, 8)}… completion started, order ${orderId}`,
+    correlationId,
+    payload: {
+      status: 202,
+      session_id: id,
+      session_status: updatedSession.status,
+      order_id: orderId,
+      payment_method: paymentMethod,
+      total: session.totals.total,
+      currency: session.currency,
+    },
+  });
 
   return noStoreJson(
     {

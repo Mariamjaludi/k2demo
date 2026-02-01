@@ -92,39 +92,49 @@ export function TerminalLogs() {
     return unsubscribe;
   }, []);
 
-  // Subscribe to server-side merchant logs via SSE
+  // Clear server-side logs on mount, then connect SSE after clear completes
   useEffect(() => {
-    const eventSource = new EventSource("/api/logs/stream");
+    let eventSource: EventSource | null = null;
+    let cancelled = false;
 
-    eventSource.onopen = () => {
-      setSseStatus("connected");
-    };
+    fetch("/api/logs/clear", { method: "POST" })
+      .catch(() => {})
+      .finally(() => {
+        if (cancelled) return;
 
-    eventSource.onmessage = (e) => {
-      try {
-        const event: DemoLogEvent = JSON.parse(e.data);
-        if (seenIds.current.has(event.id)) return;
-        seenIds.current.add(event.id);
-        setLogs((prev) => {
-          const next = [...prev, event];
-          return next.length > MAX_BUFFER_SIZE ? next.slice(-MAX_BUFFER_SIZE) : next;
-        });
-      } catch {
-        // ignore malformed SSE data
-      }
-    };
+        eventSource = new EventSource("/api/logs/stream");
 
-    eventSource.onerror = () => {
-      // EventSource auto-reconnects. Show disconnected while it retries.
-      if (eventSource.readyState === EventSource.CLOSED) {
-        setSseStatus("disconnected");
-      } else {
-        setSseStatus("connecting");
-      }
-    };
+        eventSource.onopen = () => {
+          setSseStatus("connected");
+        };
+
+        eventSource.onmessage = (e) => {
+          try {
+            const event: DemoLogEvent = JSON.parse(e.data);
+            if (seenIds.current.has(event.id)) return;
+            seenIds.current.add(event.id);
+            setLogs((prev) => {
+              const next = [...prev, event];
+              return next.length > MAX_BUFFER_SIZE ? next.slice(-MAX_BUFFER_SIZE) : next;
+            });
+          } catch {
+            // ignore malformed SSE data
+          }
+        };
+
+        eventSource.onerror = () => {
+          if (!eventSource) return;
+          if (eventSource.readyState === EventSource.CLOSED) {
+            setSseStatus("disconnected");
+          } else {
+            setSseStatus("connecting");
+          }
+        };
+      });
 
     return () => {
-      eventSource.close();
+      cancelled = true;
+      eventSource?.close();
     };
   }, []);
 

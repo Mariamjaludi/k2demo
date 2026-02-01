@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import catalog from "@/lib/data/jarir-catalog.json";
 import { CheckoutSession, LineItem, saveSession } from "@/lib/checkoutSessionStore";
+import { merchantEmitLog, createCorrelationId } from "@/lib/demoLogs/merchantContext";
 
 type RequestItem = { product_id: string; quantity: number };
 type CreateCheckoutRequest = { items: RequestItem[] };
@@ -13,15 +14,50 @@ const MAX_ITEMS = 50;
 const catalogById = new Map(catalog.map(p => [p.id, p]));
 
 export async function POST(request: NextRequest) {
+  const correlationId = createCorrelationId();
   let body: CreateCheckoutRequest;
 
   try {
     body = await request.json();
   } catch {
+    merchantEmitLog({
+      category: "agent",
+      event: "agent.checkout_sessions.create.request",
+      message: "POST /api/checkout-sessions",
+      correlationId,
+      payload: { method: "POST", body: "(invalid JSON)" },
+    });
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.create.error",
+      message: "400 Bad Request — Invalid JSON body",
+      level: "error",
+      correlationId,
+      payload: { status: 400, error: "Invalid JSON body" },
+    });
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
+  merchantEmitLog({
+    category: "agent",
+    event: "agent.checkout_sessions.create.request",
+    message: `POST /api/checkout-sessions — ${body.items?.length ?? 0} item(s)`,
+    correlationId,
+    payload: {
+      method: "POST",
+      items: body.items?.map((i) => ({ product_id: i.product_id, quantity: i.quantity })) ?? [],
+    },
+  });
+
   if (!Array.isArray(body.items) || body.items.length === 0) {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.create.error",
+      message: "400 Bad Request — items array is required",
+      level: "error",
+      correlationId,
+      payload: { status: 400, error: "items array is required and must not be empty" },
+    });
     return NextResponse.json(
       { error: "items array is required and must not be empty" },
       { status: 400 }
@@ -29,6 +65,14 @@ export async function POST(request: NextRequest) {
   }
 
   if (body.items.length > MAX_ITEMS) {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.create.error",
+      message: `400 Bad Request — items must not exceed ${MAX_ITEMS}`,
+      level: "error",
+      correlationId,
+      payload: { status: 400, error: `items must not exceed ${MAX_ITEMS}` },
+    });
     return NextResponse.json(
       { error: `items must not exceed ${MAX_ITEMS}` },
       { status: 400 }
@@ -51,7 +95,7 @@ export async function POST(request: NextRequest) {
 
   for (const [productId, quantity] of qtyByProduct.entries()) {
     const product = catalogById.get(productId);
-    
+
     if (!product) {
       errors.push(`Product not found: ${productId}`);
       continue;
@@ -73,6 +117,14 @@ export async function POST(request: NextRequest) {
   }
 
   if (lineItems.length === 0) {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.create.error",
+      message: "400 Bad Request — No valid items",
+      level: "error",
+      correlationId,
+      payload: { status: 400, error: "No valid items", details: errors },
+    });
     return NextResponse.json(
       { error: "No valid items", details: errors },
       { status: 400 }
@@ -105,6 +157,22 @@ export async function POST(request: NextRequest) {
   const responseBody = errors.length
   ? { session, warnings: errors, missing_fields: ["customer.email", "shipping.address"] }
   : { session, missing_fields: ["customer.email", "shipping.address"] };
+
+  merchantEmitLog({
+    category: "merchant",
+    event: "merchant.checkout_sessions.create.response",
+    message: `201 Created — session ${session.id.slice(0, 8)}… status: ${session.status}`,
+    correlationId,
+    payload: {
+      status: 201,
+      session_id: session.id,
+      session_status: session.status,
+      line_items: lineItems.length,
+      subtotal,
+      total,
+      currency: "SAR",
+    },
+  });
 
   return NextResponse.json(responseBody, { status: 201 });
 }

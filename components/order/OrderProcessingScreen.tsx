@@ -5,10 +5,13 @@ import Image from "next/image";
 import { RETAILER_LOGOS, type Product, ProductSummaryCard } from "@/components/product";
 import { SegmentedRingSpinner } from "./SegmentedRingSpinner";
 import { SAFE_AREA } from "@/components/DeviceFrame";
+import { pollForCompletion } from "@/lib/checkoutClient";
 
 interface OrderProcessingScreenProps {
   product: Product;
   onComplete: (orderId: string) => void;
+  /** When set, polls the merchant API for completion instead of using a local timer */
+  checkoutSessionId?: string | null;
 }
 
 const STEPS = [
@@ -35,26 +38,64 @@ function WaveText({ text }: { text: string }) {
   );
 }
 
-export function OrderProcessingScreen({ product, onComplete }: OrderProcessingScreenProps) {
+export function OrderProcessingScreen({ product, onComplete, checkoutSessionId }: OrderProcessingScreenProps) {
   const [stepIndex, setStepIndex] = useState(0);
   const finalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollingRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
+  // Step animation (same for both Jarir and non-Jarir)
   useEffect(() => {
     if (stepIndex < STEPS.length - 1) {
       const timer = setTimeout(() => setStepIndex((i) => i + 1), STEP_DURATION);
       return () => clearTimeout(timer);
     }
+  }, [stepIndex]);
 
-    // On last step, schedule onComplete exactly once
+  // Completion: poll merchant API for Jarir, use local timer for others
+  useEffect(() => {
+    if (stepIndex < STEPS.length - 1) return;
+
+    if (checkoutSessionId) {
+      // Jarir: poll GET /api/checkout-sessions/{id} until status is "completed"
+      if (pollingRef.current) return;
+      pollingRef.current = true;
+
+      const abortController = new AbortController();
+      pollForCompletion(checkoutSessionId, abortController.signal).then((result) => {
+        // Don't call onComplete if we were aborted (e.g. unmount)
+        if (abortController.signal.aborted) return;
+
+        if (result) {
+          onCompleteRef.current(result.orderId);
+        } else {
+          // Fallback: if polling times out, use a local order ID
+          const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
+          onCompleteRef.current(orderId);
+        }
+      });
+
+      return () => {
+        abortController.abort();
+        pollingRef.current = false;
+      };
+    }
+
+    // Non-Jarir: use the existing local timer
     if (finalTimerRef.current != null) return;
-
     finalTimerRef.current = setTimeout(() => {
       const orderId = `ORD-${Math.floor(1000 + Math.random() * 9000)}`;
       onCompleteRef.current(orderId);
     }, STEP_DURATION);
-  }, [stepIndex]);
+
+    return () => {
+      if (finalTimerRef.current != null) {
+        clearTimeout(finalTimerRef.current);
+        finalTimerRef.current = null;
+      }
+    };
+  }, [stepIndex, checkoutSessionId]);
 
   const logoSrc = RETAILER_LOGOS[product.retailer];
   const statusText = STEPS[stepIndex](product.retailer);

@@ -183,7 +183,7 @@ function SearchingPhase({ visible = true }: { visible?: boolean }) {
  */
 function CompletedPhase({
   visible = true,
-  siteCount = 15,
+  siteCount = SOURCE_BADGES.length,
 }: {
   visible?: boolean;
   siteCount?: number;

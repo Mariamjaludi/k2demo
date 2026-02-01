@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, saveSession, ShippingAddress, CheckoutSession } from "@/lib/checkoutSessionStore";
+import { merchantEmitLog, createCorrelationId } from "@/lib/demoLogs/merchantContext";
 
 // Check if completion is ready and flip status
 function checkForSessionCompletion(session: CheckoutSession): CheckoutSession {
@@ -26,16 +27,42 @@ export async function GET(
   _request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const correlationId = createCorrelationId();
   const { id } = await context.params;
+
+  merchantEmitLog({
+    category: "agent",
+    event: "agent.checkout_sessions.get.request",
+    message: `GET /api/checkout-sessions/${id.slice(0, 8)}…`,
+    correlationId,
+    payload: { method: "GET", session_id: id },
+  });
+
   const session = getSession(id);
 
   if (!session) {
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.get.error",
+      message: `404 Not Found — session ${id.slice(0, 8)}…`,
+      level: "error",
+      correlationId,
+      payload: { status: 404, error: "Checkout session not found" },
+    });
     return NextResponse.json({ error: "Checkout session not found" }, { status: 404 });
   }
 
   // Check if ready to flip to completed
   const updatedSession = checkForSessionCompletion(session);
   if (updatedSession.status !== session.status) saveSession(updatedSession);
+
+  merchantEmitLog({
+    category: "merchant",
+    event: "merchant.checkout_sessions.get.response",
+    message: `200 OK — session ${id.slice(0, 8)}… status: ${updatedSession.status}`,
+    correlationId,
+    payload: { status: 200, session_id: id, session_status: updatedSession.status },
+  });
 
   return NextResponse.json({ session: updatedSession }, {
     headers: { "Cache-Control": "no-store" }
@@ -109,10 +136,26 @@ export async function PATCH(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
+  const correlationId = createCorrelationId();
   const { id } = await context.params;
   const session = getSession(id);
 
   if (!session) {
+    merchantEmitLog({
+      category: "agent",
+      event: "agent.checkout_sessions.update.request",
+      message: `PATCH /api/checkout-sessions/${id.slice(0, 8)}…`,
+      correlationId,
+      payload: { method: "PATCH", session_id: id },
+    });
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.update.error",
+      message: `404 Not Found — session ${id.slice(0, 8)}…`,
+      level: "error",
+      correlationId,
+      payload: { status: 404, error: "Checkout session not found" },
+    });
     return NextResponse.json({ error: "Checkout session not found" }, { status: 404 });
   }
 
@@ -120,6 +163,21 @@ export async function PATCH(
     session.status === "canceled" ||
     session.status === "complete_in_progress" ||
     session.status === "requires_escalation") {
+    merchantEmitLog({
+      category: "agent",
+      event: "agent.checkout_sessions.update.request",
+      message: `PATCH /api/checkout-sessions/${id.slice(0, 8)}…`,
+      correlationId,
+      payload: { method: "PATCH", session_id: id },
+    });
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.update.error",
+      message: `409 Conflict — cannot update session with status: ${session.status}`,
+      level: "error",
+      correlationId,
+      payload: { status: 409, error: `Cannot update session with status: ${session.status}` },
+    });
     return NextResponse.json(
       { error: `Cannot update session with status: ${session.status}` },
       { status: 409 }
@@ -130,14 +188,52 @@ export async function PATCH(
   try {
     body = await request.json();
   } catch {
+    merchantEmitLog({
+      category: "agent",
+      event: "agent.checkout_sessions.update.request",
+      message: `PATCH /api/checkout-sessions/${id.slice(0, 8)}…`,
+      correlationId,
+      payload: { method: "PATCH", session_id: id, body: "(invalid JSON)" },
+    });
+    merchantEmitLog({
+      category: "merchant",
+      event: "merchant.checkout_sessions.update.error",
+      message: "400 Bad Request — Invalid JSON body",
+      level: "error",
+      correlationId,
+      payload: { status: 400, error: "Invalid JSON body" },
+    });
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
+
+  merchantEmitLog({
+    category: "agent",
+    event: "agent.checkout_sessions.update.request",
+    message: `PATCH /api/checkout-sessions/${id.slice(0, 8)}…`,
+    correlationId,
+    payload: {
+      method: "PATCH",
+      session_id: id,
+      updates: {
+        ...(body.customer?.email ? { email: body.customer.email } : {}),
+        ...(body.shipping?.address ? { address_city: body.shipping.address.city } : {}),
+      },
+    },
+  });
 
   // Validate and extract email
   let newEmail = session.customer.email;
   if (body.customer?.email !== undefined) {
     const result = validateEmail(body.customer.email);
     if (!result.valid) {
+      merchantEmitLog({
+        category: "merchant",
+        event: "merchant.checkout_sessions.update.error",
+        message: `400 Bad Request — ${result.error}`,
+        level: "error",
+        correlationId,
+        payload: { status: 400, error: result.error },
+      });
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
     newEmail = result.email;
@@ -152,6 +248,14 @@ export async function PATCH(
   if (body.shipping?.address !== undefined) {
     const result = validateAddress(body.shipping.address);
     if (!result.valid) {
+      merchantEmitLog({
+        category: "merchant",
+        event: "merchant.checkout_sessions.update.error",
+        message: `400 Bad Request — ${result.error}`,
+        level: "error",
+        correlationId,
+        payload: { status: 400, error: result.error },
+      });
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
     newAddress = result.normalized;
@@ -192,6 +296,20 @@ export async function PATCH(
   const missingFields: string[] = [];
   if (!hasEmail) missingFields.push("customer.email");
   if (!hasAddress) missingFields.push("shipping.address");
+
+  merchantEmitLog({
+    category: "merchant",
+    event: "merchant.checkout_sessions.update.response",
+    message: `200 OK — session ${id.slice(0, 8)}… status: ${updatedSession.status}`,
+    correlationId,
+    payload: {
+      status: 200,
+      session_id: id,
+      session_status: updatedSession.status,
+      shipping_fee: newShippingFee,
+      total: newTotals.total,
+    },
+  });
 
   return NextResponse.json({
     session: updatedSession,
