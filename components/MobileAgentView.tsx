@@ -110,7 +110,7 @@ export function MobileAgentView() {
           <OrderProcessingScreen
             product={selectedProduct}
             onComplete={completeOrder}
-            checkoutSessionId={checkoutSessionIdRef.current}
+            checkoutSessionId={state.checkoutSessionId}
           />
         ) : null;
 

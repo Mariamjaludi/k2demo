@@ -43,7 +43,9 @@ export function OrderProcessingScreen({ product, onComplete, checkoutSessionId }
   const finalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollingRef = useRef(false);
   const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
   // Step animation (same for both Jarir and non-Jarir)
   useEffect(() => {
