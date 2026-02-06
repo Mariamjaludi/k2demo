@@ -3,6 +3,7 @@ import { randomUUID } from "crypto";
 import catalog from "@/lib/data/jarir-catalog.json";
 import { CheckoutSession, LineItem, saveSession } from "@/lib/checkoutSessionStore";
 import { merchantEmitLog, createCorrelationId } from "@/lib/demoLogs/merchantContext";
+import type { Json } from "@/lib/demoLogs/types";
 
 type RequestItem = { product_id: string; quantity: number };
 type CreateCheckoutRequest = { items: RequestItem[] };
@@ -163,15 +164,7 @@ export async function POST(request: NextRequest) {
     event: "merchant.checkout_sessions.create.response",
     message: `201 Created — session ${session.id.slice(0, 8)}… status: ${session.status}`,
     correlationId,
-    payload: {
-      status: 201,
-      session_id: session.id,
-      session_status: session.status,
-      line_items: lineItems.length,
-      subtotal,
-      total,
-      currency: "SAR",
-    },
+    payload: responseBody as unknown as Json,
   });
 
   return NextResponse.json(responseBody, { status: 201 });

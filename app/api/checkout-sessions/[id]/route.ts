@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, saveSession, ShippingAddress, CheckoutSession } from "@/lib/checkoutSessionStore";
 import { merchantEmitLog, createCorrelationId } from "@/lib/demoLogs/merchantContext";
+import type { Json } from "@/lib/demoLogs/types";
 
 // Check if completion is ready and flip status
 function checkForSessionCompletion(session: CheckoutSession): CheckoutSession {
@@ -56,15 +57,17 @@ export async function GET(
   const updatedSession = checkForSessionCompletion(session);
   if (updatedSession.status !== session.status) saveSession(updatedSession);
 
+  const getBody = { session: updatedSession };
+
   merchantEmitLog({
     category: "merchant",
     event: "merchant.checkout_sessions.get.response",
     message: `200 OK — session ${id.slice(0, 8)}… status: ${updatedSession.status}`,
     correlationId,
-    payload: { status: 200, session_id: id, session_status: updatedSession.status },
+    payload: getBody as unknown as Json,
   });
 
-  return NextResponse.json({ session: updatedSession }, {
+  return NextResponse.json(getBody, {
     headers: { "Cache-Control": "no-store" }
   });
 }
@@ -297,22 +300,18 @@ export async function PATCH(
   if (!hasEmail) missingFields.push("customer.email");
   if (!hasAddress) missingFields.push("shipping.address");
 
+  const patchBody = {
+    session: updatedSession,
+    ...(missingFields.length > 0 && { missing_fields: missingFields }),
+  };
+
   merchantEmitLog({
     category: "merchant",
     event: "merchant.checkout_sessions.update.response",
     message: `200 OK — session ${id.slice(0, 8)}… status: ${updatedSession.status}`,
     correlationId,
-    payload: {
-      status: 200,
-      session_id: id,
-      session_status: updatedSession.status,
-      shipping_fee: newShippingFee,
-      total: newTotals.total,
-    },
+    payload: patchBody as unknown as Json,
   });
 
-  return NextResponse.json({
-    session: updatedSession,
-    ...(missingFields.length > 0 && { missing_fields: missingFields }),
-  });
+  return NextResponse.json(patchBody);
 }

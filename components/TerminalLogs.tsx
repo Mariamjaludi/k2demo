@@ -45,7 +45,7 @@ function LogEntry({ log, isExpanded, onToggle }: {
       <div className="flex items-start gap-2">
         <span className="shrink-0 text-zinc-600">{time}</span>
         <span className={`shrink-0 w-20 ${categoryColor}`}>[{log.category}]</span>
-        <span className={`flex-1 ${levelColor}`}>{log.message}</span>
+        <span className={`flex-1 break-words ${levelColor}`}>{log.message}</span>
         {hasPayload && (
           <button
             onClick={onToggle}
@@ -56,7 +56,7 @@ function LogEntry({ log, isExpanded, onToggle }: {
         )}
       </div>
       {hasPayload && isExpanded && (
-        <pre className="mt-1 ml-[7.5rem] overflow-x-auto rounded bg-zinc-800/50 p-2 text-xs text-zinc-400">
+        <pre className="mt-1 ml-[7.5rem] whitespace-pre-wrap break-words rounded bg-zinc-800/50 p-2 text-xs text-zinc-400">
           {JSON.stringify(log.payload, null, 2)}
         </pre>
       )}

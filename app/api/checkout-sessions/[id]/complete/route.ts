@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "crypto";
 import { getSession, saveSession, CheckoutSession } from "@/lib/checkoutSessionStore";
 import { merchantEmitLog, createCorrelationId } from "@/lib/demoLogs/merchantContext";
+import type { Json } from "@/lib/demoLogs/types";
 
 const COMPLETION_DELAY_SECONDS = 5;
 
@@ -59,17 +60,15 @@ export async function POST(
   }
 
   if (session.status === "complete_in_progress") {
+    const inProgressBody = { message: "Completion already in progress", session };
     merchantEmitLog({
       category: "merchant",
       event: "merchant.checkout_sessions.complete.response",
       message: `202 Accepted — completion already in progress`,
       correlationId,
-      payload: { status: 202, session_id: id, session_status: session.status },
+      payload: inProgressBody as unknown as Json,
     });
-    return noStoreJson(
-      { message: "Completion already in progress", session },
-      202
-    )
+    return noStoreJson(inProgressBody, 202);
   }
   if (session.status !== "ready_for_complete") {
     merchantEmitLog({
@@ -146,28 +145,19 @@ export async function POST(
 
   saveSession(updatedSession);
 
+  const completeBody = {
+    session: updatedSession,
+    poll_url: `/api/checkout-sessions/${updatedSession.id}`,
+    message: "Checkout completion in progress",
+  };
+
   merchantEmitLog({
     category: "merchant",
     event: "merchant.checkout_sessions.complete.response",
     message: `202 Accepted — session ${id.slice(0, 8)}… completion started, order ${orderId}`,
     correlationId,
-    payload: {
-      status: 202,
-      session_id: id,
-      session_status: updatedSession.status,
-      order_id: orderId,
-      payment_method: paymentMethod,
-      total: session.totals.total,
-      currency: session.currency,
-    },
+    payload: completeBody as unknown as Json,
   });
 
-  return noStoreJson(
-    {
-      session: updatedSession,
-      poll_url: `/api/checkout-sessions/${updatedSession.id}`,
-      message: "Checkout completion in progress",
-    },
-    202
-  )
+  return noStoreJson(completeBody, 202);
 }
