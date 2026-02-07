@@ -50,22 +50,7 @@ export function matchTriggers(query: string): TriggerMatch | null {
 
   for (const scenario of SCENARIOS) {
     for (const trigger of scenario.triggers) {
-      const triggerLower = trigger.toLowerCase();
-      const regex = new RegExp(`\b${triggerLower.replace(/[.*+?^${}()|[\]\\]/g, '\\  for (const scenario of SCENARIOS) {
-    for (const trigger of scenario.triggers) {
       if (normalized.includes(trigger.toLowerCase())) {
-        const mapping = SCENARIO_PRODUCT_MAPPING[scenario.id];
-        if (mapping) {
-          return {
-            scenarioId: scenario.id,
-            categories: mapping.categories,
-            types: mapping.types,
-          };
-        }
-      }
-    }
-  }')}\b`);
-      if (regex.test(normalized)) {
         const mapping = SCENARIO_PRODUCT_MAPPING[scenario.id];
         if (mapping) {
           return {
