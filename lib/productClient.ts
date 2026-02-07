@@ -1,7 +1,8 @@
-import { Retailer, type Product } from "@/components/product/ProductCard";
+import { Retailer, type Product, type ProductBundle } from "@/components/product/ProductCard";
 import amazonCatalog from "./data/amazon-catalog.json";
 import noonCatalog from "./data/noon-catalog.json";
 import extraCatalog from "./data/extra-catalog.json";
+import { matchTriggers, productMatchesTrigger, type TriggerMatch } from "./triggerMatcher";
 
 const VALID_RETAILERS = new Set<string>(Object.values(Retailer));
 
@@ -47,14 +48,28 @@ function extractProductDescription(query: string): string {
 }
 
 /**
- * Calculate relevance score for a product based on search terms
+ * Calculate relevance score for a product based on search terms and optional trigger match.
+ * If a trigger match is provided and the product matches the trigger's categories/types,
+ * the product gets a boost even if the search terms don't directly match.
  */
-function calculateRelevance(product: Product, searchTerms: string[]): number {
-  if (searchTerms.length === 0) return 0;
-
+function calculateRelevance(
+  product: Product,
+  searchTerms: string[],
+  triggerMatch: TriggerMatch | null = null
+): number {
   let score = 0;
   const titleLower = product.title.toLowerCase();
+  const brandLower = product.brand.toLowerCase();
+  const categoryLower = product.category.toLowerCase().replace(/_/g, " ");
   const retailerLower = product.retailer.toLowerCase();
+  const typeLower = (typeof product.attributes?.type === "string" ? product.attributes.type : "").toLowerCase().replace(/_/g, " ");
+
+  // Check if product matches a triggered scenario's categories/types
+  if (triggerMatch && productMatchesTrigger(product.category, product.attributes?.type as string | undefined, triggerMatch)) {
+    score += 15; // Boost for matching scenario domain
+  }
+
+  if (searchTerms.length === 0) return score;
 
   for (const term of searchTerms) {
     if (titleLower.includes(term)) {
@@ -62,6 +77,15 @@ function calculateRelevance(product: Product, searchTerms: string[]): number {
       if (titleLower.split(/\s+/).includes(term)) {
         score += 5;
       }
+    }
+    if (brandLower.includes(term)) {
+      score += 8;
+    }
+    if (categoryLower.includes(term)) {
+      score += 5;
+    }
+    if (typeLower.includes(term)) {
+      score += 5;
     }
     if (retailerLower.includes(term)) {
       score += 2;
@@ -74,14 +98,18 @@ function calculateRelevance(product: Product, searchTerms: string[]): number {
 /**
  * Sort products by relevance, with Jarir priority for ties
  */
-function sortByRelevance(products: Product[], searchTerms: string[]): Product[] {
-  if (searchTerms.length === 0) {
+function sortByRelevance(
+  products: Product[],
+  searchTerms: string[],
+  triggerMatch: TriggerMatch | null = null
+): Product[] {
+  if (searchTerms.length === 0 && !triggerMatch) {
     return products;
   }
 
   const scored = products.map(product => ({
     product,
-    relevance: calculateRelevance(product, searchTerms),
+    relevance: calculateRelevance(product, searchTerms, triggerMatch),
     isJarir: product.retailer === Retailer.Jarir,
   }));
 
@@ -168,6 +196,13 @@ function tagProducts(products: Product[]): Product[] {
   });
 }
 
+/** API offer shape from K2 response */
+interface ApiOffer {
+  ui: { title: string; subtitle: string; badges: string[] };
+  included_items?: { title: string; retail_value: number }[];
+  perks?: { type: string; title: string }[];
+}
+
 /** Catalog item shape returned by the /api/products endpoint */
 interface CatalogItem {
   id: string;
@@ -179,6 +214,27 @@ interface CatalogItem {
   image_url?: string;
   availability: { in_stock: boolean; stock_level: number };
   delivery: { default_promise: string };
+  offer?: ApiOffer;
+  bundles?: ApiOffer[];
+}
+
+/**
+ * Convert an API offer to a ProductBundle
+ */
+function toProductBundle(offer: ApiOffer): ProductBundle {
+  return {
+    title: offer.ui.title,
+    subtitle: offer.ui.subtitle,
+    badges: offer.ui.badges,
+    includedItems: offer.included_items?.map((i) => ({
+      title: i.title,
+      retail_value: i.retail_value,
+    })),
+    perks: offer.perks?.map((p) => ({
+      type: p.type,
+      title: p.title,
+    })),
+  };
 }
 
 /**
@@ -188,7 +244,7 @@ function toProduct(item: CatalogItem): Product {
   const rating = 4.5 + Math.random() * 0.4;
   const reviewCount = Math.floor(500 + Math.random() * 2000);
 
-  return {
+  const product: Product = {
     id: item.id,
     title: item.title,
     brand: item.brand,
@@ -202,6 +258,15 @@ function toProduct(item: CatalogItem): Product {
     availability: item.availability,
     delivery: item.delivery,
   };
+
+  // Convert offer/bundles from API to UI format
+  if (item.bundles && item.bundles.length > 0) {
+    product.bundles = item.bundles.map(toProductBundle);
+  } else if (item.offer) {
+    product.bundle = toProductBundle(item.offer);
+  }
+
+  return product;
 }
 
 /**
@@ -251,6 +316,9 @@ export async function fetchProducts(options: FetchProductsOptions): Promise<Fetc
   const searchTerms = extractSearchTerms(query);
   const productDescription = extractProductDescription(query);
 
+  // Check if query matches any scenario triggers (for boosting related products)
+  const triggerMatch = matchTriggers(query);
+
   // Build API URL with search term if available
   const searchParam = searchTerms.length > 0 ? `&q=${encodeURIComponent(searchTerms.join(" "))}` : "";
   const url = `/api/products?limit=${limit}${searchParam}`;
@@ -265,11 +333,17 @@ export async function fetchProducts(options: FetchProductsOptions): Promise<Fetc
     // Convert catalog items to Product
     const jarirProducts: Product[] = (data.items || []).map(toProduct);
 
-    // Combine with mock competitors
-    const allProducts = [...jarirProducts, ...MOCK_COMPETITORS];
+    // Filter competitors to only include relevant products (relevance > 0)
+    // Uses both search terms and trigger matching for better coverage
+    const relevantCompetitorsProducts = (searchTerms.length > 0 || triggerMatch)
+      ? MOCK_COMPETITORS.filter(p => calculateRelevance(p, searchTerms, triggerMatch) > 0)
+      : MOCK_COMPETITORS;
+
+    // Combine with filtered competitors
+    const allProducts = [...jarirProducts, ...relevantCompetitorsProducts];
 
     // Sort by relevance, then assign tags
-    const sortedProducts = sortByRelevance(allProducts, searchTerms);
+    const sortedProducts = sortByRelevance(allProducts, searchTerms, triggerMatch);
     const taggedProducts = tagProducts(sortedProducts);
 
     return {
@@ -280,8 +354,13 @@ export async function fetchProducts(options: FetchProductsOptions): Promise<Fetc
   } catch (error) {
     console.error("Failed to fetch products:", error);
 
+    // Filter competitors to only include relevant products
+    const relevantCompetitors = (searchTerms.length > 0 || triggerMatch)
+      ? MOCK_COMPETITORS.filter(p => calculateRelevance(p, searchTerms, triggerMatch) > 0)
+      : MOCK_COMPETITORS;
+
     // Return just competitors on error, sorted by relevance
-    const sortedCompetitors = sortByRelevance(MOCK_COMPETITORS, searchTerms);
+    const sortedCompetitors = sortByRelevance(relevantCompetitors, searchTerms, triggerMatch);
     const taggedCompetitors = tagProducts(sortedCompetitors);
 
     return {

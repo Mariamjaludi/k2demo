@@ -18,6 +18,14 @@ export const RETAILER_LOGOS: Partial<Record<Retailer, string>> = {
   [Retailer.Lulu]: "/luluLogo.svg",
 };
 
+export interface ProductBundle {
+  title: string;
+  subtitle: string;
+  badges: string[];
+  includedItems?: { title: string; retail_value: number }[];
+  perks?: { type: string; title: string }[];
+}
+
 export interface Product {
   id: string;
   title: string;
@@ -29,6 +37,10 @@ export interface Product {
   rating: number;
   reviewCount: number;
   image_url?: string;
+  attributes?: {
+    type?: string;
+    [key: string]: unknown;
+  };
   availability: {
     in_stock: boolean;
     stock_level: number;
@@ -37,6 +49,10 @@ export interface Product {
     default_promise: string;
   };
   tags?: string[];
+  /** Single offer/bundle for this product */
+  bundle?: ProductBundle;
+  /** Multiple bundle options (used when same product has multiple offer variants) */
+  bundles?: ProductBundle[];
 }
 
 interface ProductCardProps {

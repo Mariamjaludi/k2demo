@@ -141,13 +141,34 @@ export function buildScenarioResponse(
   // Sort response items by rank ascending
   responseItems.sort((a, b) => a.rank - b.rank);
 
+  // ── Phase 2.5: Merge duplicate SKUs into single items with bundles ─
+  const mergedItemsMap = new Map<string, ResponseItem>();
+  for (const item of responseItems) {
+    const existing = mergedItemsMap.get(item.id);
+    if (existing) {
+      // Same SKU already exists — merge offers into bundles
+      if (!existing.bundles) {
+        // Convert existing single offer to bundles array
+        existing.bundles = existing.offer ? [existing.offer] : [];
+        delete existing.offer;
+      }
+      if (item.offer) {
+        existing.bundles.push(item.offer);
+      }
+    } else {
+      // First occurrence of this SKU
+      mergedItemsMap.set(item.id, item);
+    }
+  }
+  const mergedItems = Array.from(mergedItemsMap.values());
+
   // ── Phase 3: Build response body ──────────────────────────────────
-  const recommendedItemId = responseItems.length > 0 ? responseItems[0].item_id : null;
+  const recommendedItemId = mergedItems.length > 0 ? mergedItems[0].item_id : null;
 
   const responseBody: K2ResponseBody = {
     ucp: { version: UCP_META.version, capabilities: UCP_META.capabilities },
     query,
-    items: responseItems,
+    items: mergedItems,
     recommended_item_id: recommendedItemId,
     correlation_id: correlationId,
   };
@@ -162,37 +183,47 @@ export function buildScenarioResponse(
     };
   });
 
+  // Helper to get all offers from an item (handles both offer and bundles)
+  const getItemOffers = (item: ResponseItem): ItemOffer[] => {
+    if (item.bundles) return item.bundles;
+    if (item.offer) return [item.offer];
+    return [];
+  };
+
   // Compute aggregates from final response (after enforcement)
-  const finalTotalIncludedValue = responseItems.reduce(
-    (sum, item) => sum + (item.offer?.price_breakdown.included_value ?? 0),
+  const finalTotalIncludedValue = mergedItems.reduce(
+    (sum, item) => sum + getItemOffers(item).reduce((s, o) => s + o.price_breakdown.included_value, 0),
     0,
   );
-  // Attach rate = fraction of items with at least one included item
-  const itemsWithIncluded = responseItems.filter(
-    (item) => (item.offer?.included_items?.length ?? 0) > 0,
+  // Attach rate = fraction of items with at least one included item in any offer
+  const itemsWithIncluded = mergedItems.filter(
+    (item) => getItemOffers(item).some((o) => o.included_items.length > 0),
   ).length;
 
   // Build applied_offers from final response
-  const appliedOffers: K2DebugLog["applied_offers"] = responseItems
-    .filter((item) => item.offer)
-    .map((item) => {
-      const perkSummary = item.offer!.perks.map((p) => p.type).join(", ");
-      const includedSummary = item.offer!.included_items.map((i) => i.title).join(", ");
-      return {
-        sku_id: item.id,
-        rank: item.rank,
-        offer_summary:
-          [
-            includedSummary ? `includes: ${includedSummary}` : null,
-            perkSummary ? `perks: ${perkSummary}` : null,
-          ]
-            .filter(Boolean)
-            .join("; ") || "offer with UI only",
-      };
+  const appliedOffers: K2DebugLog["applied_offers"] = mergedItems
+    .filter((item) => item.offer || item.bundles)
+    .flatMap((item) => {
+      return getItemOffers(item).map((offer, idx) => {
+        const perkSummary = offer.perks.map((p) => p.type).join(", ");
+        const includedSummary = offer.included_items.map((i) => i.title).join(", ");
+        return {
+          sku_id: item.id,
+          rank: item.rank,
+          offer_summary:
+            [
+              item.bundles ? `bundle ${idx + 1}` : null,
+              includedSummary ? `includes: ${includedSummary}` : null,
+              perkSummary ? `perks: ${perkSummary}` : null,
+            ]
+              .filter(Boolean)
+              .join("; ") || "offer with UI only",
+        };
+      });
     });
 
   // Build confidence scores
-  const confidenceScores = responseItems.map((item) => ({
+  const confidenceScores = mergedItems.map((item) => ({
     sku_id: item.id,
     rank: item.rank,
     confidence: Math.max(0.95 - (item.rank - 1) * 0.1, 0.5),
@@ -200,9 +231,9 @@ export function buildScenarioResponse(
 
   // Compute guardrail check from final response
   const includedIdsInResponse = new Set(
-    responseItems.flatMap((i) => i.offer?.included_items.map((x) => x.sku_id) ?? []),
+    mergedItems.flatMap((i) => getItemOffers(i).flatMap((o) => o.included_items.map((x) => x.sku_id))),
   );
-  const bundleExclusionPassed = !responseItems.some((i) => includedIdsInResponse.has(i.id));
+  const bundleExclusionPassed = !mergedItems.some((i) => includedIdsInResponse.has(i.id));
 
   const debug: K2DebugLog = {
     correlation_id: correlationId,

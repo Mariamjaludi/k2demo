@@ -100,16 +100,30 @@ export async function GET(request: NextRequest) {
     const k2Mode = isK2Enabled(request);
 
     if (k2Mode && query) {
-      // K2 path: try scenario match
+      // K2 path
       const scenario = matchScenario(query);
 
       if (scenario) {
         merchantEmitLog({
           category: "k2",
-          event: "k2.scenario.detected",
-          message: `Scenario detected: ${scenario.name}`,
+          event: "k2.intercept",
+          message: `Intercepting search: "${query}"`,
           correlationId,
-          payload: { scenario_id: scenario.id, scenario_name: scenario.name, query },
+          payload: { query, catalog_size: baseCatalog.length },
+        });
+
+        merchantEmitLog({
+          category: "k2",
+          event: "k2.analyze.catalog",
+          message: `Scanning ${baseCatalog.length} SKUs for relevance, inventory levels, margins`,
+          correlationId,
+          payload: {
+          payload: {
+            in_stock_count: baseCatalog.filter((p) => p.availability?.in_stock).length,
+            categories: [...new Set(baseCatalog.map((p) => p.category))],
+          },
+            categories: [...new Set(baseCatalog.map((p) => p.category))],
+          },
         });
 
         const { responseBody, debug } = buildScenarioResponse(scenario, baseCatalog, query, correlationId);
@@ -118,21 +132,27 @@ export async function GET(request: NextRequest) {
 
         merchantEmitLog({
           category: "k2",
-          event: "k2.scenario.response",
-          message: `${responseBody.items.length} items returned with ${debug.applied_offers.length} offers`,
+          event: "k2.compute.kpis",
+          message: `Computing KPIs: attach rate ${(debug.kpi_deltas.attach_rate * 100).toFixed(0)}%, bundle value SAR ${debug.kpi_deltas.bundle_value_added.toFixed(2)}`,
+          correlationId,
+          payload: debug.kpi_deltas,
+        });
+
+        merchantEmitLog({
+          category: "k2",
+          event: "k2.assemble.offers",
+          message: `Assembled ${responseBody.items.length} ranked items with ${debug.applied_offers.length} value-added offers`,
           correlationId,
           payload: {
-            items_count: responseBody.items.length,
-            offers_count: debug.applied_offers.length,
+            ranked_items: responseBody.items.map((i) => ({ item_id: i.item_id, rank: i.rank, has_offer: !!i.offer })),
             recommended_item_id: responseBody.recommended_item_id,
-            narrative: debug.narrative,
-          } as unknown as Json,
+          },
         });
 
         merchantEmitLog({
           category: "merchant",
           event: "merchant.products.search.response",
-          message: `200 OK — ${responseBody.items.length} item${responseBody.items.length !== 1 ? "s" : ""} returned (K2 scenario)`,
+          message: `200 OK — ${responseBody.items.length} item${responseBody.items.length !== 1 ? "s" : ""} returned`,
           correlationId,
           payload: responseBody as unknown as Json,
         });
@@ -140,14 +160,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json(responseBody);
       }
 
-      // K2 mode but no scenario match — fall through to baseline search
-      merchantEmitLog({
-        category: "k2",
-        event: "k2.scenario.no_match",
-        message: "No scenario matched, falling through to baseline search",
-        correlationId,
-        payload: { query },
-      });
+      // K2 mode but no match — fall through to baseline search
     }
 
     // Baseline path (also used for K2 no-match fallback)

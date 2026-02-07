@@ -116,7 +116,10 @@ export type ItemOffer = {
 export type ResponseItem = PublicProduct & {
   item_id: string;
   rank: number;
+  /** Single offer for this item (mutually exclusive with bundles) */
   offer?: ItemOffer;
+  /** Multiple bundle options for the same product (used when same SKU appears multiple times with different offers) */
+  bundles?: ItemOffer[];
 };
 
 export type K2ResponseBody = {
