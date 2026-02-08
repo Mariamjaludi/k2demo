@@ -1,5 +1,5 @@
 export type Velocity = "fast" | "normal" | "slow" | "overstock";
-export type LifecycleStage = "current" | "aging" | "clearance";
+export type LifecycleStage = "core" | "new" | "seasonal" | "aging";
 
 /** All monetary fields (price, unit_cost, fulfillment_cost) are SAR decimals. */
 export type Product = {
@@ -70,7 +70,8 @@ export type PerkType =
   | "assembly"
   | "loyalty"
   | "raffle"
-  | "event_invite";
+  | "event_invite"
+  | "variant_option";
 
 /** Internal perk types — includes values that are valid in scenario definitions but not exposed in the API. */
 export type InternalPerkType = PerkType | "pickup_optional_paid";
