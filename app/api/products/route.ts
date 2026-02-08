@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import catalogJson from "@/lib/data/jarir-catalog.json";
 import { merchantEmitLog, createCorrelationId } from "@/lib/demoLogs/merchantContext";
 import { isK2Enabled } from "@/lib/config/demo";
-import { matchScenario, buildScenarioResponse } from "@/lib/k2/scenarioEngine";
+import { matchScenario, buildScenarioResponse, normalizeText } from "@/lib/k2/scenarioEngine";
 import { storeDebugLog } from "@/lib/k2/debugStore";
 import { toPublicProduct, UCP_META, type Product, type K2ResponseBody, type ResponseItem } from "@/lib/k2/types";
 import type { Json } from "@/lib/demoLogs/types";
@@ -12,10 +12,8 @@ const catalog = catalogJson as Product[];
 // ── Search helpers ──────────────────────────────────────────────────
 
 function tokenize(query: string) {
-  return query
-    .toLowerCase()
-    .split(/[\s,.;:/()]+/)
-    .map((t) => t.trim())
+  return normalizeText(query)
+    .split(/\s+/)
     .filter((t) => t.length > 0);
 }
 
@@ -50,19 +48,16 @@ function buildBaselineResponse(
   limit: number,
   correlationId: string,
 ): K2ResponseBody {
-  const items = results.slice(0, limit);
-  // Recommended item is the first result (closest match to query)
-  // Baseline uses product id as item_id (stable, no duplicates)
-  const recommendedItemId = items.length > 0 ? items[0].id : null;
+  const items: ResponseItem[] = results.slice(0, limit).map((p, i) => ({
+    ...toPublicProduct(p),
+    item_id: p.id,
+    rank: i + 1,
+  }));
   return {
     ucp: { version: UCP_META.version, capabilities: UCP_META.capabilities },
     query: query || "",
-    items: items.map((p, i) => ({
-      ...toPublicProduct(p),
-      item_id: p.id,
-      rank: i + 1,
-    } as ResponseItem)),
-    recommended_item_id: recommendedItemId,
+    items,
+    recommended: items.length > 0 ? { item_id: items[0].item_id, offer_id: null } : null,
     correlation_id: correlationId,
   };
 }
@@ -73,7 +68,8 @@ const MAX_LIMIT = 50;
 export async function GET(request: NextRequest) {
   const correlationId = createCorrelationId();
   const searchParams = request.nextUrl.searchParams;
-  const query = (searchParams.get("q") ?? "").toLowerCase();
+  const rawQuery = searchParams.get("q") ?? "";
+  const query = rawQuery.toLowerCase();
 
   const rawLimit = Number.parseInt(searchParams.get("limit") ?? "", 10);
 
@@ -87,9 +83,9 @@ export async function GET(request: NextRequest) {
   merchantEmitLog({
     category: "agent",
     event: "agent.products.search.request",
-    message: `GET /api/products${query ? `?q=${query}` : ""}`,
+    message: `GET /api/products${rawQuery ? `?q=${rawQuery}` : ""}`,
     correlationId,
-    payload: { method: "GET", query: query || null, limit, include_oos: includeOOS },
+    payload: { method: "GET", query: rawQuery || null, limit, include_oos: includeOOS },
   });
 
   try {
@@ -104,27 +100,34 @@ export async function GET(request: NextRequest) {
       const scenario = matchScenario(query);
 
       if (scenario) {
+        const hasIdentity = request.headers.get("x-k2-identity") === "1";
+
+        // K2 scenarios enforce their own OOS filtering with itemRemovals logging,
+        // so always pass the full catalog regardless of include_oos.
+        const k2Catalog = catalog;
+
         merchantEmitLog({
           category: "k2",
           event: "k2.intercept",
-          message: `Intercepting search: "${query}"`,
+          message: `Intercepting search: "${rawQuery}"`,
           correlationId,
-          payload: { query, catalog_size: baseCatalog.length },
+          payload: { query: rawQuery, catalog_size: k2Catalog.length, has_identity: hasIdentity, include_oos_requested: includeOOS, k2_forces_in_stock: true },
         });
 
+        const categories = [...new Set(k2Catalog.map((p) => p.category))];
         merchantEmitLog({
           category: "k2",
           event: "k2.analyze.catalog",
-          message: `Scanning ${baseCatalog.length} SKUs for relevance, inventory levels, margins`,
+          message: `Scanning ${k2Catalog.length} SKUs for relevance, inventory levels, margins`,
           correlationId,
           payload: {
-            in_stock_count: baseCatalog.filter((p) => p.availability?.in_stock).length,
-            categories: [...new Set(baseCatalog.map((p) => p.category))],
+            in_stock_count: k2Catalog.filter((p) => p.availability?.in_stock).length,
+            category_count: categories.length,
+            categories: categories.slice(0, 20),
           },
         });
 
-        const { responseBody, debug } = buildScenarioResponse(scenario, baseCatalog, query, correlationId);
-        responseBody.items = responseBody.items.slice(0, limit);
+        const { responseBody, debug } = buildScenarioResponse(scenario, k2Catalog, rawQuery, correlationId, hasIdentity, limit);
         storeDebugLog(debug);
 
         merchantEmitLog({
@@ -141,8 +144,12 @@ export async function GET(request: NextRequest) {
           message: `Assembled ${responseBody.items.length} ranked items with ${debug.applied_offers.length} value-added offers`,
           correlationId,
           payload: {
-            ranked_items: responseBody.items.map((i) => ({ item_id: i.item_id, rank: i.rank, has_offer: !!i.offer })),
-            recommended_item_id: responseBody.recommended_item_id,
+            ranked_items: responseBody.items.map((i) => ({
+              item_id: i.item_id,
+              rank: i.rank,
+              offer_count: i.ranked_offers?.length ?? 0,
+            })),
+            recommended: responseBody.recommended,
           },
         });
 
@@ -162,7 +169,7 @@ export async function GET(request: NextRequest) {
 
     // Baseline path (also used for K2 no-match fallback)
     const results = searchCatalog(query, baseCatalog);
-    const responseBody = buildBaselineResponse(query, results, limit, correlationId);
+    const responseBody = buildBaselineResponse(rawQuery, results, limit, correlationId);
 
     merchantEmitLog({
       category: "merchant",

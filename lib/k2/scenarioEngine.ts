@@ -11,7 +11,7 @@ const TASHKEEL_AND_TATWEEL = /[\u0610-\u061A\u0640\u064B-\u065F\u0670]/g;
 /** Common punctuation in both Latin and Arabic */
 const PUNCTUATION = /[؟،؛.,:;!?'"()\[\]{}\-_]/g;
 
-function normalizeText(text: string): string {
+export function normalizeText(text: string): string {
   return text
     .toLowerCase()
     .normalize("NFKC")
@@ -56,32 +56,34 @@ const API_PERK_TYPES: ReadonlySet<PerkType> = new Set<PerkType>([
   "variant_option",
 ]);
 
+type PerkMapResult = { perk: Perk; warning?: string };
+
 /**
  * Maps an internal perk to an API-safe perk.
  * Returns null for unknown/unmappable types (caller should log and drop).
  */
-function mapToApiPerk(perk: InternalPerk): Perk | null {
-  if (perk.type === "pickup_optional_paid") {
+function mapToApiPerk(ip: InternalPerk): PerkMapResult | null {
+  if (ip.type === "pickup_optional_paid") {
     return {
-      type: "pickup",
-      title: perk.title,
-      details: { ...perk.details, paid: true },
+      perk: { type: "pickup", title: ip.title, details: { ...ip.details, paid: true } },
     };
   }
 
-  if (perk.type === "pickup") {
-    // Normalize free pickups to include paid/price_sar for consistent shape
+  if (ip.type === "pickup") {
+    const warning =
+      ip.details.price_sar != null || ip.details.paid != null
+        ? `Free pickup perk had price/paid fields in details — overridden to paid: false, price_sar: 0`
+        : undefined;
     return {
-      type: "pickup",
-      title: perk.title,
-      details: { ...perk.details, paid: false, price_sar: 0 },
+      perk: { type: "pickup", title: ip.title, details: { ...ip.details, paid: false, price_sar: 0 } },
+      warning,
     };
   }
 
-  // At this point, pickup and pickup_optional_paid are already handled above.
-  // perk.type is narrowed to PerkType (all remaining InternalPerkType values).
-  if (API_PERK_TYPES.has(perk.type)) {
-    return { type: perk.type, title: perk.title, details: perk.details };
+  // pickup and pickup_optional_paid handled above; remaining InternalPerkType
+  // values are all valid PerkType so the Set check is a runtime guard only.
+  if (API_PERK_TYPES.has(ip.type)) {
+    return { perk: { type: ip.type, title: ip.title, details: ip.details } };
   }
 
   // Unknown type — drop it
@@ -98,10 +100,14 @@ function sanitizeUiForNoIdentity(ui: { title: string; subtitle: string; badges: 
   badges: string[];
 } {
   return {
-    title: ui.title.replace(/\s*[—-]\s*Personali[sz]ed\b/i, ""),
+    title: ui.title.replace(/\s*[\u2014-]\s*Personali[sz]ed\b/i, ""),
     subtitle: ui.subtitle
+      // English gift patterns
       .replace(/\s*\+\s*free\s+book\s+gift[^+]*/i, "")
       .replace(/\s*\(next in your series\)/i, "")
+      // Arabic gift patterns
+      .replace(/\s*\+\s*هدية[^+]*/i, "")
+      .replace(/\s*\(.*?مجان[اً].*?\)/i, "")
       .trim(),
     badges: ui.badges.filter((b) => !GIFT_BADGE_PATTERN.test(b)),
   };
@@ -115,6 +121,7 @@ export function buildScenarioResponse(
   query: string,
   correlationId: string,
   hasIdentity: boolean,
+  maxItems?: number,
 ): { responseBody: K2ResponseBody; debug: K2DebugLog } {
   const catalogMap = new Map(catalog.map((p) => [p.id, p]));
   const itemRemovals: K2DebugLog["item_removals"] = [];
@@ -214,9 +221,16 @@ export function buildScenarioResponse(
         // Map internal perks to API-safe perks, dropping unknown types
         const apiPerks: Perk[] = [];
         for (const perk of offerDef.perks) {
-          const mapped = mapToApiPerk(perk);
-          if (mapped) {
-            apiPerks.push(mapped);
+          const result = mapToApiPerk(perk);
+          if (result) {
+            apiPerks.push(result.perk);
+            if (result.warning) {
+              guardrailChecks.push({
+                rule: "pickup_free_price_ignored",
+                passed: false,
+                detail: `Offer ${offerId}: ${result.warning}`,
+              });
+            }
           } else {
             guardrailChecks.push({
               rule: "unknown_perk_type_dropped",
@@ -253,7 +267,14 @@ export function buildScenarioResponse(
     responseItems.push(responseItem);
   }
 
-  // ── Phase 2: Bundle exclusion ────────────────────────────────────
+  // ── Phase 2: Sort and apply limit ───────────────────────────────
+  responseItems.sort((a, b) => a.rank - b.rank);
+
+  if (maxItems != null && maxItems > 0 && responseItems.length > maxItems) {
+    responseItems.length = maxItems;
+  }
+
+  // ── Phase 3: Bundle exclusion (uses limited topLevelIds) ──────
   const topLevelIds = new Set(responseItems.map((i) => i.item_id));
   let bundleExclusionRemovals = 0;
 
@@ -284,11 +305,11 @@ export function buildScenarioResponse(
     }
   }
 
-  responseItems.sort((a, b) => a.rank - b.rank);
+  // ── Phase 4: Build applied_offers debug entries ────────────────
+  const responseItemBySku = new Map(responseItems.map((i) => [i.item_id, i]));
 
-  // ── Phase 3: Build applied_offers debug entries (after bundle exclusion) ─
   for (const scenarioItem of sortedItems) {
-    const item = responseItems.find((i) => i.item_id === scenarioItem.sku_id);
+    const item = responseItemBySku.get(scenarioItem.sku_id);
     if (!item?.ranked_offers) continue;
 
     for (const offer of item.ranked_offers) {
@@ -319,7 +340,7 @@ export function buildScenarioResponse(
     }
   }
 
-  // ── Phase 4: Build response body ─────────────────────────────────
+  // ── Phase 5: Build response body ──────────────────────────────
   const recommended =
     responseItems.length > 0
       ? {
@@ -336,7 +357,7 @@ export function buildScenarioResponse(
     correlation_id: correlationId,
   };
 
-  // ── Phase 5: Debug log ───────────────────────────────────────────
+  // ── Phase 6: Debug log ────────────────────────────────────────
   const candidatePool = scenario.items.map((si) => {
     const p = catalogMap.get(si.sku_id);
     return {
@@ -399,7 +420,7 @@ export function buildScenarioResponse(
     },
     guardrail_checks: guardrailChecks,
     narrative: scenario.narrative,
-    response_payload_sent: responseBody,
+    response_payload_sent: structuredClone(responseBody),
   };
 
   return { responseBody, debug };
