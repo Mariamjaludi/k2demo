@@ -118,10 +118,7 @@ export async function GET(request: NextRequest) {
           message: `Scanning ${baseCatalog.length} SKUs for relevance, inventory levels, margins`,
           correlationId,
           payload: {
-          payload: {
             in_stock_count: baseCatalog.filter((p) => p.availability?.in_stock).length,
-            categories: [...new Set(baseCatalog.map((p) => p.category))],
-          },
             categories: [...new Set(baseCatalog.map((p) => p.category))],
           },
         });
