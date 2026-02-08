@@ -68,18 +68,24 @@ interface ProductCardProps {
 }
 
 function RatingStars({ rating }: { rating: number }) {
+  const rounded = Math.round(rating);
   return (
     <span className="inline-flex items-center gap-0.5">
-      {rating.toFixed(1)}
-      <svg
-        width="12"
-        height="12"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className="inline-block text-amber-500"
-      >
-        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
-      </svg>
+      <span>{rating.toFixed(1)}</span>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <svg
+          key={star}
+          width="12"
+          height="12"
+          viewBox="0 0 24 24"
+          fill={star <= rounded ? "currentColor" : "none"}
+          stroke="currentColor"
+          strokeWidth={star <= rounded ? "0" : "2"}
+          className={star <= rounded ? "text-amber-400" : "text-zinc-300"}
+        >
+          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+        </svg>
+      ))}
     </span>
   );
 }
@@ -137,172 +143,70 @@ export function generateReviewSummary(product: Product): string {
   );
 }
 
-const FULFILLMENT_PERK_TYPES = new Set(["pickup", "pickup_optional_paid", "delivery"]);
-
-function getDeliveryHighlight(product: Product): string {
-  const promise = (product.delivery?.default_promise ?? "").toLowerCase();
-  const hoursMatch = promise.match(/(\d+)\s*h(ou)?rs?/);
-  if (hoursMatch) {
-    const hours = parseInt(hoursMatch[1], 10);
-    if (hours <= 12) return `**Delivery in ${hours} hours** in Riyadh`;
-    if (hours <= 24) return "**Same-day delivery** in Riyadh";
-    if (hours <= 48) return "**Next-day delivery** in Riyadh";
-  }
-  if (promise.includes("same-day") || promise.includes("same day") || promise.includes("today"))
-    return "**Same-day delivery** in Riyadh";
-  if (promise.includes("tomorrow"))
-    return "**Next-day delivery** in Riyadh";
-  return "**Fast delivery** across Saudi Arabia";
-}
-
-/** Builds a fulfillment bullet from pickup/delivery perks + delivery promise. */
-function getFulfillmentHighlight(product: Product): string {
-  const allBundles = product.bundles ?? (product.bundle ? [product.bundle] : []);
-  const perks = allBundles.flatMap((b) => b.perks ?? []);
-  const seen = new Set<string>();
-  const parts: string[] = [];
-
-  for (const perk of perks) {
-    if (FULFILLMENT_PERK_TYPES.has(perk.type) && !seen.has(perk.type)) {
-      seen.add(perk.type);
-      parts.push(`**${perk.title}**`);
-    }
-  }
-
-  // Append delivery promise if not already covered by a delivery perk
-  if (!seen.has("delivery")) {
-    parts.push(`${getDeliveryHighlight(product)} available`);
-  }
-
-  return parts.join(". ") + ".";
-}
-
-/** Builds an offer bullet from included items and non-fulfillment perks. */
-function getOfferHighlight(product: Product): string | null {
-  const allBundles = product.bundles ?? (product.bundle ? [product.bundle] : []);
-  if (allBundles.length === 0) return null;
-
-  const sentences: string[] = [];
-
-  // Name each included item explicitly
-  const includedItems = allBundles.flatMap((b) => b.includedItems ?? []);
-  if (includedItems.length === 1) {
-    sentences.push(`Free **${includedItems[0].title}** with purchase`);
-  } else if (includedItems.length === 2) {
-    sentences.push(`Free **${includedItems[0].title}** and **${includedItems[1].title}** with purchase`);
-  } else if (includedItems.length > 2) {
-    const names = includedItems.map((i) => `**${i.title}**`);
-    const last = names.pop()!;
-    sentences.push(`Free ${names.join(", ")} and ${last} with purchase`);
-  }
-
-  // Summarise non-fulfillment perks
-  const perks = allBundles.flatMap((b) => b.perks ?? []);
-  const seen = new Set<string>();
-  const perkParts: string[] = [];
-  for (const perk of perks) {
-    if (!FULFILLMENT_PERK_TYPES.has(perk.type) && !seen.has(perk.type)) {
-      seen.add(perk.type);
-      perkParts.push(`**${perk.title}**`);
-    }
-  }
-  if (perkParts.length > 0) {
-    sentences.push(perkParts.join(" and "));
-  }
-
-  if (sentences.length === 0) return null;
-  return sentences.join(". ") + ".";
-}
-
-function generateFeatureSummary(product: Product): string {
-  const deliveryHighlight = getDeliveryHighlight(product);
-
-  const summaries: Record<string, string> = {
-    office_supplies: `Features ${deliveryHighlight}.`,
-    school_supplies: `Includes ${deliveryHighlight} with **easy returns** within 14 days.`,
-    toys_kids_learning: `Comes with ${deliveryHighlight} and is **age-appropriate** for safe play.`,
-    arts_crafts: `Offers ${deliveryHighlight} with **premium materials** for lasting creations.`,
-    english_books: `Available with ${deliveryHighlight} from **trusted publishers** with quality content.`,
-  };
-
-  return (
-    summaries[product.category] ||
-    `Features ${deliveryHighlight} and **quality guarantee** from ${product.retailer}.`
-  );
-}
-
 export function ProductCard({ product, onClickTitle }: ProductCardProps) {
-  const offerHighlight = getOfferHighlight(product);
-  const hasOffer = !!offerHighlight;
-  const featureSummary = hasOffer ? null : generateFeatureSummary(product);
-  const fulfillmentHighlight = hasOffer ? getFulfillmentHighlight(product) : null;
+  const tags = (product.tags ?? []).slice(0, 2);
+  const retailerLogo = RETAILER_LOGOS[product.retailer];
 
   return (
-    <div className="py-3">
-      {/* Main row: image, info */}
-      <div className="flex items-center gap-3">
-        <div className={`product-thumbnail h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-zinc-100 ${!product.image_url ? "flex items-center justify-center" : ""}`}>
-          <Image
-            src={product.image_url ?? "/product-list-card-image-placeholder.svg"}
-            alt={product.image_url ? product.title : ""}
-            aria-hidden={!product.image_url}
-            width={64}
-            height={64}
-            className={product.image_url ? "h-full w-full object-cover" : "h-6 w-6"}
-            unoptimized
-          />
-        </div>
-
-        <div className="product-name min-w-0 flex-1">
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            onClick={() => onClickTitle?.(product.id)}
-            className="product-title block max-w-full text-left text-sm font-medium text-blue-600 underline decoration-blue-300 underline-offset-2 hover:text-blue-800 focus:outline-none focus:ring-2 focus:ring-blue-200 focus:ring-offset-2 rounded-sm"
-          >
-            {product.title}
-          </button>
-
-          <p className="product-price mt-0.5 text-sm text-zinc-900">
-            {formatPrice(product.price, product.currency)}
-          </p>
-
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-zinc-500">
-            <RatingStars rating={product.rating} />
-            <span>{formatReviewCount(product.reviewCount)}</span>
-            <span className="text-zinc-300">·</span>
-            <span>{product.retailer}</span>
-          </p>
-        </div>
+    <button
+      type="button"
+      aria-haspopup="dialog"
+      onClick={() => onClickTitle?.(product.id)}
+      className="flex flex-col rounded-xl shadow-sm text-left cursor-pointer"
+    >
+      {/* Image area with benefit tags */}
+      <div className="relative aspect-square w-full overflow-hidden rounded-t-xl bg-zinc-100">
+        <Image
+          src={product.image_url ?? "/product-list-card-image-placeholder.svg"}
+          alt={product.image_url ? product.title : ""}
+          aria-hidden={!product.image_url}
+          fill
+          className={product.image_url ? "object-cover" : "object-contain p-6"}
+          unoptimized
+        />
+        {tags.length > 0 && (
+          <div className="absolute left-2 top-2 flex flex-col gap-1">
+            {tags.map((tag) => (
+              <span
+                key={tag}
+                className="inline-block rounded-sm bg-emerald-700 px-1.5 py-px text-[10px] font-bold uppercase text-white"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
+      {/* Product info */}
+      <div className="mt-2 flex flex-col px-2.5 pb-3">
+        <span className="product-title text-sm font-normal leading-snug text-zinc-900 line-clamp-2">
+          {product.title}
+        </span>
 
-      <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-600">
-        {offerHighlight && (
-          <li className="offer-summary flex gap-2">
-            <span className="shrink-0 text-zinc-400">•</span>
-            <span>
-              <HighlightedText text={offerHighlight} />
-            </span>
-          </li>
-        )}
-        {fulfillmentHighlight && (
-          <li className="fulfillment-summary flex gap-2">
-            <span className="shrink-0 text-zinc-400">•</span>
-            <span>
-              <HighlightedText text={fulfillmentHighlight} />
-            </span>
-          </li>
-        )}
-        {featureSummary && (
-          <li className="feature-summary flex gap-2">
-            <span className="shrink-0 text-zinc-400">•</span>
-            <span>
-              <HighlightedText text={featureSummary} />
-            </span>
-          </li>
-        )}
-      </ul>
-    </div>
+        <p className="product-price mt-0.5 text-sm font-normal text-zinc-900">
+          {formatPrice(product.price, product.currency)}
+        </p>
+
+        <div className="mt-1 flex items-center gap-1.5">
+          {retailerLogo && (
+            <Image
+              src={retailerLogo}
+              alt={product.retailer}
+              width={16}
+              height={16}
+              className="h-4 w-4 object-contain"
+              unoptimized
+            />
+          )}
+          <span className="text-xs text-zinc-500">{product.retailer}</span>
+        </div>
+
+        <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
+          <RatingStars rating={product.rating} />
+          <span>{formatReviewCount(product.reviewCount)}</span>
+        </p>
+      </div>
+    </button>
   );
 }
