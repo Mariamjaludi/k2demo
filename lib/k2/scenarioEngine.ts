@@ -162,6 +162,25 @@ export function buildScenarioResponse(
   }
   const mergedItems = Array.from(mergedItemsMap.values());
 
+  // ── Phase 2.6: Promote delivery perk into delivery.default_promise ─
+  for (const item of mergedItems) {
+    const allOffers = item.bundles ?? (item.offer ? [item.offer] : []);
+    // Find the first delivery perk across all offers
+    for (const offer of allOffers) {
+      const idx = offer.perks.findIndex((p) => p.type === "delivery");
+      if (idx !== -1) {
+        const perk = offer.perks[idx];
+        const promise = typeof perk.details?.promise === "string" ? perk.details.promise : perk.title;
+        item.delivery = { default_promise: promise };
+        // Remove delivery perks from all offers on this item
+        for (const o of allOffers) {
+          o.perks = o.perks.filter((p) => p.type !== "delivery");
+        }
+        break;
+      }
+    }
+  }
+
   // ── Phase 3: Build response body ──────────────────────────────────
   const recommendedItemId = mergedItems.length > 0 ? mergedItems[0].item_id : null;
 

@@ -63,7 +63,7 @@
       "image_url": "https://ak-asset.jarir.com/akeneo-prod/asset/3/e/2/8/3e281ffeaafc49bf2d16b5be47cdfc198cd4eba2_594617.jpg",
       "attributes": { "type": "office_chair", "color": "Brown" },
       "availability": { "in_stock": true, "stock_level": 22 },
-      "delivery": { "default_promise": "Deliver in 2 days in Riyadh" }
+      "delivery": { "default_promise": "Deliver in 3 days in Riyadh" }
     },
     {
       "id": "extra_ps5_slim_1tb",

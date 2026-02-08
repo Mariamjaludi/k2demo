@@ -175,7 +175,7 @@ export const SCENARIOS: Scenario[] = [
             },
             {
               type: "pickup_optional_paid",
-              title: "Same-day pickup available (SAR 10)",
+              title: "Same-day pickup available",
               details: { price: 10, currency: "SAR", city: "Riyadh", cutoff_time_local: "12:00" },
             },
           ],
@@ -377,31 +377,8 @@ export const SCENARIOS: Scenario[] = [
         },
       },
       {
-        sku_id: "jarir_sony_ps5_pro_digital_669128",
-        rank: 2,
-        offer: {
-          included_items: [],
-          perks: [
-            {
-              type: "raffle",
-              title: "Esports World Cup ticket raffle entry",
-              details: {
-                event: "Esports World Cup 2025",
-                location: "Riyadh",
-                draw_date: "2025-07-01",
-              },
-            },
-          ],
-          ui: {
-            title: "PS5 Pro Digital",
-            subtitle: "PlayStation 5 Pro + Esports World Cup raffle entry",
-            badges: ["Raffle Entry"],
-          },
-        },
-      },
-      {
         sku_id: "jarir_sony_ps5_slim_digital_664089",
-        rank: 3,
+        rank: 2,
         offer: {
           included_items: ["jarir_turtle_beach_victrix_pro_reloaded_664614"],
           perks: [],
@@ -414,7 +391,7 @@ export const SCENARIOS: Scenario[] = [
       },
       {
         sku_id: "jarir_sony_ps5_slim_dig_1tb_627671",
-        rank: 4,
+        rank: 3,
       },
     ],
     narrative:

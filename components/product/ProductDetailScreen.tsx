@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
-import { Retailer, RETAILER_LOGOS, type Product } from "./ProductCard";
+import { Retailer, RETAILER_LOGOS, type Product, type ProductBundle, type BundledItem, generateReviewSummary, HighlightedText } from "./ProductCard";
 import { SHIPPING_RIYADH, round2 } from "@/lib/pricing";
 
 interface ProductDetailScreenProps {
@@ -19,7 +19,14 @@ function getShippingCost(product: Product): number {
 
 function getDeliveryTag(product: Product): string | null {
   const promise = product.delivery?.default_promise?.toLowerCase() ?? "";
-  if (promise.includes("today")) return "Arrives today before 10pm";
+  const hoursMatch = promise.match(/(\d+)\s*h(ou)?rs?/);
+  if (hoursMatch) {
+    const hours = parseInt(hoursMatch[1], 10);
+    if (hours <= 12) return `Arrives in ${hours} hours`;
+    if (hours <= 24) return "Arrives today";
+    if (hours <= 48) return "Arrives tomorrow";
+  }
+  if (promise.includes("same-day") || promise.includes("same day") || promise.includes("today")) return "Arrives today";
   if (promise.includes("tomorrow")) return "Arrives tomorrow";
   if (promise.includes("1–2 days") || promise.includes("1-2 days")) return "Arrives in 1–2 days";
   if (promise.includes("2–3 days") || promise.includes("2-3 days")) return "Arrives in 2–3 days";
@@ -136,12 +143,77 @@ function RetailerLogo({ retailer }: { retailer: Retailer }) {
   );
 }
 
+function BundledItemCard({ item }: { item: BundledItem }) {
+  const displayName = item.brand ? `${item.brand} ${item.title}` : item.title;
+
+  return (
+    <div className="flex w-28 max-w-28 shrink-0 flex-col overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50 p-2">
+      <div className="relative mx-auto h-16 w-16">
+        {item.image_url ? (
+          <Image
+            src={item.image_url}
+            alt={item.title}
+            fill
+            className="object-contain"
+            unoptimized
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Image
+              src="/product-list-card-image-placeholder.svg"
+              alt="No image"
+              width={24}
+              height={24}
+              className="opacity-40"
+              unoptimized
+            />
+          </div>
+        )}
+      </div>
+      <span className="mt-2 line-clamp-3 text-[10px] font-medium leading-tight text-zinc-700">
+        {displayName}
+      </span>
+      <span className="mt-0.5 text-[9px] text-zinc-500">
+        valued at SAR {item.retail_value.toFixed(2)}
+      </span>
+    </div>
+  );
+}
+
+function OffersSection({ bundle, bundles }: { bundle?: ProductBundle; bundles?: ProductBundle[] }) {
+  // Collect all included items from bundle(s)
+  const allBundles = bundles ?? (bundle ? [bundle] : []);
+  if (allBundles.length === 0) return null;
+
+  const includedItems = allBundles.flatMap((b) => b.includedItems ?? []);
+
+  if (includedItems.length === 0) return null;
+
+  return (
+    <div className="offers-section px-4 pt-3">
+      <h2 className="text-[13px] font-semibold text-zinc-900">Free Gifts with Purchase</h2>
+      <div className="scrollbar-none mt-2 flex gap-3 overflow-x-auto pb-2">
+        {includedItems.map((item, idx) => (
+          <BundledItemCard key={`${item.title}-${idx}`} item={item} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Extract perks from bundle(s) */
+function getPerks(bundle?: ProductBundle, bundles?: ProductBundle[]): { type: string; title: string }[] {
+  const allBundles = bundles ?? (bundle ? [bundle] : []);
+  return allBundles.flatMap((b) => b.perks ?? []);
+}
+
 export function ProductDetailScreen({ product, onClose, onBuy, disabled = false }: ProductDetailScreenProps) {
   const [isClosing, setIsClosing] = useState(false);
 
   const images = product.image_url ? [product.image_url] : [];
 
   const tags = product.tags ?? [];
+  const perks = getPerks(product.bundle, product.bundles);
   const deliveryTag = getDeliveryTag(product);
   const shipping = getShippingCost(product);
   const inStock = product.availability?.in_stock ?? false;
@@ -224,11 +296,22 @@ export function ProductDetailScreen({ product, onClose, onBuy, disabled = false 
           </div>
         </div>
 
+        <OffersSection bundle={product.bundle} bundles={product.bundles} />
+
+        <div className="reviews-summary px-4 pt-3">
+          <p className="text-xs leading-relaxed text-zinc-600">
+            <HighlightedText text={generateReviewSummary(product)} />
+          </p>
+        </div>
+
         <div className="product-detail-card mx-4 mt-4 rounded-lg border border-zinc-100 bg-zinc-50">
 
           <div className="tags-row flex flex-wrap gap-1.5 px-4 pt-3 pb-2">
             {tags.map((tag) => (
               <Tag key={tag} label={tag} />
+            ))}
+            {perks.map((perk, idx) => (
+              <Tag key={`perk-${perk.type}-${idx}`} label={perk.title} />
             ))}
             {deliveryTag && <Tag label={deliveryTag} />}
           </div>

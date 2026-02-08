@@ -18,11 +18,18 @@ export const RETAILER_LOGOS: Partial<Record<Retailer, string>> = {
   [Retailer.Lulu]: "/luluLogo.svg",
 };
 
+export interface BundledItem {
+  title: string;
+  brand?: string;
+  retail_value: number;
+  image_url?: string;
+}
+
 export interface ProductBundle {
   title: string;
   subtitle: string;
   badges: string[];
-  includedItems?: { title: string; retail_value: number }[];
+  includedItems?: BundledItem[];
   perks?: { type: string; title: string }[];
 }
 
@@ -91,7 +98,7 @@ function formatReviewCount(count: number): string {
   return `(${count})`;
 }
 
-function HighlightedText({ text }: { text: string }) {
+export function HighlightedText({ text }: { text: string }) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g);
 
   return (
@@ -110,7 +117,7 @@ function HighlightedText({ text }: { text: string }) {
   );
 }
 
-function generateReviewSummary(product: Product): string {
+export function generateReviewSummary(product: Product): string {
   const summaries: Record<string, string> = {
     office_supplies:
       "Customers praise its **reliable quality** and **excellent value** for everyday office use.",
@@ -130,12 +137,85 @@ function generateReviewSummary(product: Product): string {
   );
 }
 
-function generateFeatureSummary(product: Product): string {
-  const defaultPromise = product.delivery?.default_promise ?? "";
+const FULFILLMENT_PERK_TYPES = new Set(["pickup", "pickup_optional_paid", "delivery"]);
 
-  const deliveryHighlight = defaultPromise.toLowerCase().includes("tomorrow")
-    ? "**next-day delivery** in Riyadh"
-    : "**fast delivery** across Saudi Arabia";
+function getDeliveryHighlight(product: Product): string {
+  const promise = (product.delivery?.default_promise ?? "").toLowerCase();
+  const hoursMatch = promise.match(/(\d+)\s*h(ou)?rs?/);
+  if (hoursMatch) {
+    const hours = parseInt(hoursMatch[1], 10);
+    if (hours <= 12) return `**Delivery in ${hours} hours** in Riyadh`;
+    if (hours <= 24) return "**Same-day delivery** in Riyadh";
+    if (hours <= 48) return "**Next-day delivery** in Riyadh";
+  }
+  if (promise.includes("same-day") || promise.includes("same day") || promise.includes("today"))
+    return "**Same-day delivery** in Riyadh";
+  if (promise.includes("tomorrow"))
+    return "**Next-day delivery** in Riyadh";
+  return "**Fast delivery** across Saudi Arabia";
+}
+
+/** Builds a fulfillment bullet from pickup/delivery perks + delivery promise. */
+function getFulfillmentHighlight(product: Product): string {
+  const allBundles = product.bundles ?? (product.bundle ? [product.bundle] : []);
+  const perks = allBundles.flatMap((b) => b.perks ?? []);
+  const seen = new Set<string>();
+  const parts: string[] = [];
+
+  for (const perk of perks) {
+    if (FULFILLMENT_PERK_TYPES.has(perk.type) && !seen.has(perk.type)) {
+      seen.add(perk.type);
+      parts.push(`**${perk.title}**`);
+    }
+  }
+
+  // Append delivery promise if not already covered by a delivery perk
+  if (!seen.has("delivery")) {
+    parts.push(`${getDeliveryHighlight(product)} available`);
+  }
+
+  return parts.join(". ") + ".";
+}
+
+/** Builds an offer bullet from included items and non-fulfillment perks. */
+function getOfferHighlight(product: Product): string | null {
+  const allBundles = product.bundles ?? (product.bundle ? [product.bundle] : []);
+  if (allBundles.length === 0) return null;
+
+  const sentences: string[] = [];
+
+  // Name each included item explicitly
+  const includedItems = allBundles.flatMap((b) => b.includedItems ?? []);
+  if (includedItems.length === 1) {
+    sentences.push(`Free **${includedItems[0].title}** with purchase`);
+  } else if (includedItems.length === 2) {
+    sentences.push(`Free **${includedItems[0].title}** and **${includedItems[1].title}** with purchase`);
+  } else if (includedItems.length > 2) {
+    const names = includedItems.map((i) => `**${i.title}**`);
+    const last = names.pop()!;
+    sentences.push(`Free ${names.join(", ")} and ${last} with purchase`);
+  }
+
+  // Summarise non-fulfillment perks
+  const perks = allBundles.flatMap((b) => b.perks ?? []);
+  const seen = new Set<string>();
+  const perkParts: string[] = [];
+  for (const perk of perks) {
+    if (!FULFILLMENT_PERK_TYPES.has(perk.type) && !seen.has(perk.type)) {
+      seen.add(perk.type);
+      perkParts.push(`**${perk.title}**`);
+    }
+  }
+  if (perkParts.length > 0) {
+    sentences.push(perkParts.join(" and "));
+  }
+
+  if (sentences.length === 0) return null;
+  return sentences.join(". ") + ".";
+}
+
+function generateFeatureSummary(product: Product): string {
+  const deliveryHighlight = getDeliveryHighlight(product);
 
   const summaries: Record<string, string> = {
     office_supplies: `Features ${deliveryHighlight}.`,
@@ -152,8 +232,10 @@ function generateFeatureSummary(product: Product): string {
 }
 
 export function ProductCard({ product, onClickTitle }: ProductCardProps) {
-  const reviewSummary = generateReviewSummary(product);
-  const featureSummary = generateFeatureSummary(product);
+  const offerHighlight = getOfferHighlight(product);
+  const hasOffer = !!offerHighlight;
+  const featureSummary = hasOffer ? null : generateFeatureSummary(product);
+  const fulfillmentHighlight = hasOffer ? getFulfillmentHighlight(product) : null;
 
   return (
     <div className="py-3">
@@ -196,18 +278,30 @@ export function ProductCard({ product, onClickTitle }: ProductCardProps) {
 
 
       <ul className="mt-3 space-y-2 text-xs leading-relaxed text-zinc-600">
-        <li className="reviews-summary flex gap-2">
-          <span className="shrink-0 text-zinc-400">•</span>
-          <span>
-            <HighlightedText text={reviewSummary} />
-          </span>
-        </li>
-        <li className="feature-summary flex gap-2">
-          <span className="shrink-0 text-zinc-400">•</span>
-          <span>
-            <HighlightedText text={featureSummary} />
-          </span>
-        </li>
+        {offerHighlight && (
+          <li className="offer-summary flex gap-2">
+            <span className="shrink-0 text-zinc-400">•</span>
+            <span>
+              <HighlightedText text={offerHighlight} />
+            </span>
+          </li>
+        )}
+        {fulfillmentHighlight && (
+          <li className="fulfillment-summary flex gap-2">
+            <span className="shrink-0 text-zinc-400">•</span>
+            <span>
+              <HighlightedText text={fulfillmentHighlight} />
+            </span>
+          </li>
+        )}
+        {featureSummary && (
+          <li className="feature-summary flex gap-2">
+            <span className="shrink-0 text-zinc-400">•</span>
+            <span>
+              <HighlightedText text={featureSummary} />
+            </span>
+          </li>
+        )}
       </ul>
     </div>
   );

@@ -19,7 +19,7 @@
       "image_url": "https://ak-asset.jarir.com/akeneo-prod/asset/5/a/1/c/5a1ca7059464e2c7a21edebdb8f06cef95cbd6e0_647576.jpg",
       "attributes": { "type": "backpack", "colors": ["Black", "Blue"] },
       "availability": { "in_stock": true, "stock_level": 160 },
-      "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+      "delivery": { "default_promise": "Delivery today in 2hrs if you order before 5pm in Riyadh" }
     },
     {
       "id": "noon_generic_backpack_set",
@@ -41,7 +41,7 @@
       "image_url": "https://ak-asset.jarir.com/akeneo-prod/asset/m1/delta/540329.jpg",
       "attributes": { "type": "backpack", "bundle": true },
       "availability": { "in_stock": true, "stock_level": 500 },
-      "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+      "delivery": { "default_promise": "Delivery today in 2hrs if you order before 5pm in Riyadh" }
     },
     {
       "id": "noon_ps5_slim_digital",
@@ -85,6 +85,6 @@
       "image_url": "https://ak-asset.jarir.com/akeneo-prod/asset/m1/delta/566546.jpg",
       "attributes": { "type": "book", "author": "أسامة المسلم" },
       "availability": { "in_stock": true, "stock_level": 420 },
-      "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+      "delivery": { "default_promise": "Delivery today in 2hrs if you order before 5pm in Riyadh" }
     }
   ]

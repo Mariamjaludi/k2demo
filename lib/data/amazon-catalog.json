@@ -19,7 +19,7 @@
       "image_url": "https://ak-asset.jarir.com/akeneo-prod/asset/m1images/4/4/448452.jpg",
       "attributes": { "type": "marker_set" },
       "availability": { "in_stock": true, "stock_level": 220 },
-      "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+      "delivery": { "default_promise": "Delivers in 2 days in Riyadh" }
     },
     {
       "id": "amazon_crayola_supertips_100",
@@ -41,7 +41,7 @@
       "image_url": "https://m.media-amazon.com/images/I/81FIJEldgEL._AC_SL1500_.jpg",
       "attributes": { "type": "marker_set", "washable": true },
       "availability": { "in_stock": true, "stock_level": 160 },
-      "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+      "delivery": { "default_promise": "Delivers in 2 days in Riyadh" }
     },
     {
       "id": "amazon_atrium_classic_backpack",
@@ -63,7 +63,7 @@
       "image_url": "https://ak-asset.jarir.com/akeneo-prod/asset/8/d/9/a/8d9a0c215d0e38e0f35754b926b7684e4fd2d1d3_647577.jpg",
       "attributes": { "type": "backpack", "colors": ["Black", "Blue", "Green"] },
       "availability": { "in_stock": true, "stock_level": 140 },
-      "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+      "delivery": { "default_promise": "Delivers in 2 days in Riyadh" }
     },
     {
       "id": "amazon_ps5_pro_digital",
@@ -107,6 +107,6 @@
       "image_url": "https://ak-asset.jarir.com/akeneo-prod/asset/m1images/5/3/536880.jpg",
       "attributes": { "type": "book", "author": "أسامة المسلم" },
       "availability": { "in_stock": true, "stock_level": 260 },
-      "delivery": { "default_promise": "Deliver tomorrow in Riyadh" }
+      "delivery": { "default_promise": "Deliver today in Riyadh" }
     }
   ]

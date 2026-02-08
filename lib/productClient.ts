@@ -98,32 +98,47 @@ function calculateRelevance(
 /**
  * Sort products by relevance, with Jarir priority for ties
  */
+/** Fisher-Yates shuffle (in place) */
+function shuffle<T>(arr: T[]): T[] {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function sortByRelevance(
   products: Product[],
   searchTerms: string[],
   triggerMatch: TriggerMatch | null = null
 ): Product[] {
   if (searchTerms.length === 0 && !triggerMatch) {
-    return products;
+    return shuffle([...products]);
   }
 
   const scored = products.map(product => ({
     product,
     relevance: calculateRelevance(product, searchTerms, triggerMatch),
-    isJarir: product.retailer === Retailer.Jarir,
   }));
 
-  scored.sort((a, b) => {
-    if (b.relevance !== a.relevance) {
-      return b.relevance - a.relevance;
-    }
-    if (a.isJarir !== b.isJarir) {
-      return a.isJarir ? -1 : 1;
-    }
-    return 0;
-  });
+  // Sort by relevance descending
+  scored.sort((a, b) => b.relevance - a.relevance);
 
-  return scored.map(s => s.product);
+  // Shuffle within each relevance tier so retailers are interleaved
+  const result: Product[] = [];
+  let i = 0;
+  while (i < scored.length) {
+    let j = i;
+    while (j < scored.length && scored[j].relevance === scored[i].relevance) {
+      j++;
+    }
+    const tier = scored.slice(i, j).map(s => s.product);
+    shuffle(tier);
+    result.push(...tier);
+    i = j;
+  }
+
+  return result;
 }
 
 /**
@@ -159,11 +174,19 @@ function tagProducts(products: Product[]): Product[] {
   // Find fastest delivery based on promise text
   const deliverySpeed = (promise: string): number => {
     const lower = promise.toLowerCase();
-    if (lower.includes("today")) return 0;
-    if (lower.includes("tomorrow")) return 1;
-    if (lower.includes("1–2 days") || lower.includes("1-2 days")) return 2;
-    if (lower.includes("2–3 days") || lower.includes("2-3 days")) return 3;
-    return 4;
+    const hoursMatch = lower.match(/(\d+)\s*h(ou)?rs?/);
+    if (hoursMatch) {
+      const hours = parseInt(hoursMatch[1], 10);
+      if (hours <= 12) return 0;   // Express: faster than same-day
+      if (hours <= 24) return 1;   // Same-day tier
+      if (hours <= 48) return 2;   // Tomorrow tier
+      return 3;                    // 1–2 days tier
+    }
+    if (lower.includes("same-day") || lower.includes("same day") || lower.includes("today")) return 1;
+    if (lower.includes("tomorrow")) return 2;
+    if (lower.includes("1–2 days") || lower.includes("1-2 days")) return 3;
+    if (lower.includes("2–3 days") || lower.includes("2-3 days")) return 4;
+    return 5;
   };
 
   let fastestDeliveryId: string | null = null;
@@ -183,13 +206,11 @@ function tagProducts(products: Product[]): Product[] {
     if (p.id === topRatedId) tags.push("Top rated");
     if (p.id === fastestDeliveryId) tags.push("Fastest delivery");
 
-    // Jarir products may have bundle offerings
-    if (p.retailer === Retailer.Jarir) {
-      if (p.category === "office_supplies" || p.category === "school_supplies") {
-        tags.push("Best value bundle");
-      } else {
-        tags.push("Free gift with purchase");
-      }
+    // Tag products that actually have bundled items
+    const allBundles = p.bundles ?? (p.bundle ? [p.bundle] : []);
+    const hasIncludedItems = allBundles.some(b => (b.includedItems?.length ?? 0) > 0);
+    if (hasIncludedItems) {
+      tags.push("Free gift with purchase");
     }
 
     return { ...p, tags };
@@ -199,7 +220,7 @@ function tagProducts(products: Product[]): Product[] {
 /** API offer shape from K2 response */
 interface ApiOffer {
   ui: { title: string; subtitle: string; badges: string[] };
-  included_items?: { title: string; retail_value: number }[];
+  included_items?: { title: string; brand?: string; retail_value: number; image_url?: string }[];
   perks?: { type: string; title: string }[];
 }
 
@@ -212,6 +233,7 @@ interface CatalogItem {
   price: number;
   currency: "SAR";
   image_url?: string;
+  attributes?: Record<string, unknown>;
   availability: { in_stock: boolean; stock_level: number };
   delivery: { default_promise: string };
   offer?: ApiOffer;
@@ -228,7 +250,9 @@ function toProductBundle(offer: ApiOffer): ProductBundle {
     badges: offer.ui.badges,
     includedItems: offer.included_items?.map((i) => ({
       title: i.title,
+      brand: i.brand,
       retail_value: i.retail_value,
+      image_url: i.image_url,
     })),
     perks: offer.perks?.map((p) => ({
       type: p.type,
@@ -255,6 +279,7 @@ function toProduct(item: CatalogItem): Product {
     rating: Math.round(rating * 10) / 10,
     reviewCount,
     image_url: item.image_url,
+    attributes: item.attributes,
     availability: item.availability,
     delivery: item.delivery,
   };
