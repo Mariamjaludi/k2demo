@@ -3,6 +3,7 @@ import amazonCatalog from "./data/amazon-catalog.json";
 import noonCatalog from "./data/noon-catalog.json";
 import extraCatalog from "./data/extra-catalog.json";
 import { matchTriggers, productMatchesTrigger, type TriggerMatch } from "./triggerMatcher";
+import { normalizeText } from "./text/normalize";
 
 const VALID_RETAILERS = new Set<string>(Object.values(Retailer));
 
@@ -27,13 +28,12 @@ const FILLER_WORDS = new Set([
 ]);
 
 /**
- * Extract meaningful search terms from a user query
+ * Extract meaningful search terms from a user query.
+ * Uses normalizeText for Arabic diacritics/tatweel parity with server.
  */
 function extractSearchTerms(query: string): string[] {
-  return query
-    .toLowerCase()
+  return normalizeText(query)
     .split(/\s+/)
-    .map(t => t.replace(/[^\p{L}\p{N}]+/gu, ""))
     .filter(t => t.length > 1 && !FILLER_WORDS.has(t));
 }
 
@@ -208,24 +208,56 @@ function tagProducts(products: Product[]): Product[] {
 
     // Tag products that actually have bundled items
     const allBundles = p.bundles ?? (p.bundle ? [p.bundle] : []);
-    const hasIncludedItems = allBundles.some(b => (b.includedItems?.length ?? 0) > 0);
+    const hasIncludedItems = allBundles.some(b => b.includedItems.length > 0);
     if (hasIncludedItems) {
       tags.push("Free gift with purchase");
+    }
+
+    // Merge first curated badge from the top offer (Jarir items only)
+    if (p.retailer === Retailer.Jarir && allBundles.length > 0) {
+      const topBadge = allBundles[0].badges[0];
+      if (topBadge && !tags.includes(topBadge)) {
+        tags.push(topBadge);
+      }
     }
 
     return { ...p, tags };
   });
 }
 
-/** API offer shape from K2 response */
-interface ApiOffer {
+/** API perk types — mirrors server PerkType union */
+type ApiPerkType = "pickup" | "delivery" | "assembly" | "loyalty" | "raffle" | "event_invite" | "variant_option";
+
+/** Ranked offer shape from K2 response */
+interface ApiRankedOffer {
+  offer_id: string;
+  rank: number;
   ui: { title: string; subtitle: string; badges: string[] };
-  included_items?: { title: string; brand?: string; retail_value: number; image_url?: string }[];
-  perks?: { type: string; title: string }[];
+  included_items: { sku_id: string; title: string; brand: string; retail_value: number; currency: "SAR"; image_url: string }[];
+  perks: { type: ApiPerkType; title: string; details: Record<string, unknown> }[];
+  price_breakdown: { items_subtotal: number; included_value: number; discount_total: number; total_price: number; currency: "SAR" };
 }
 
-/** Catalog item shape returned by the /api/products endpoint */
+/** Catalog item shape returned by the /api/products endpoint (mirrors ResponseItem) */
 interface CatalogItem {
+  /** Same as id in this demo; kept for future UCP item identity separation */
+  item_id: string;
+  id: string;
+  rank: number;
+  title: string;
+  brand: string;
+  category: string;
+  price: number;
+  currency: "SAR";
+  image_url: string;
+  attributes: Record<string, unknown>;
+  availability: { in_stock: boolean; stock_level: number };
+  delivery: { default_promise: string };
+  ranked_offers?: ApiRankedOffer[];
+}
+
+/** Raw shape of items in jarir-catalog.json (no item_id, rank, or ranked_offers) */
+interface StaticCatalogItem {
   id: string;
   title: string;
   brand: string;
@@ -236,37 +268,46 @@ interface CatalogItem {
   attributes?: Record<string, unknown>;
   availability: { in_stock: boolean; stock_level: number };
   delivery: { default_promise: string };
-  offer?: ApiOffer;
-  bundles?: ApiOffer[];
 }
 
 /**
- * Convert an API offer to a ProductBundle
+ * Convert an API ranked offer to a ProductBundle for the UI
  */
-function toProductBundle(offer: ApiOffer): ProductBundle {
+function toProductBundle(offer: ApiRankedOffer): ProductBundle {
   return {
+    offerId: offer.offer_id,
+    rank: offer.rank,
     title: offer.ui.title,
     subtitle: offer.ui.subtitle,
     badges: offer.ui.badges,
-    includedItems: offer.included_items?.map((i) => ({
+    includedItems: offer.included_items.map((i) => ({
       title: i.title,
       brand: i.brand,
       retail_value: i.retail_value,
       image_url: i.image_url,
     })),
-    perks: offer.perks?.map((p) => ({
+    perks: offer.perks.map((p) => ({
       type: p.type,
       title: p.title,
     })),
   };
 }
 
+/** Generate mock rating/review data for demo display */
+function mockRating(): { rating: number; reviewCount: number } {
+  const rating = 4.5 + Math.random() * 0.4;
+  return {
+    rating: Math.round(rating * 10) / 10,
+    reviewCount: Math.floor(500 + Math.random() * 2000),
+  };
+}
+
 /**
- * Convert a catalog item to a Product
+ * Convert an API response item (CatalogItem) to a UI Product.
+ * UI uses item.id which equals item_id in this demo.
  */
 function toProduct(item: CatalogItem): Product {
-  const rating = 4.5 + Math.random() * 0.4;
-  const reviewCount = Math.floor(500 + Math.random() * 2000);
+  const { rating, reviewCount } = mockRating();
 
   const product: Product = {
     id: item.id,
@@ -276,7 +317,7 @@ function toProduct(item: CatalogItem): Product {
     retailer: Retailer.Jarir,
     price: item.price,
     currency: item.currency,
-    rating: Math.round(rating * 10) / 10,
+    rating,
     reviewCount,
     image_url: item.image_url,
     attributes: item.attributes,
@@ -284,27 +325,55 @@ function toProduct(item: CatalogItem): Product {
     delivery: item.delivery,
   };
 
-  // Convert offer/bundles from API to UI format
-  if (item.bundles && item.bundles.length > 0) {
-    product.bundles = item.bundles.map(toProductBundle);
-  } else if (item.offer) {
-    product.bundle = toProductBundle(item.offer);
+  // Convert ranked_offers from API to UI format
+  if (item.ranked_offers && item.ranked_offers.length > 0) {
+    if (item.ranked_offers.length === 1) {
+      product.bundle = toProductBundle(item.ranked_offers[0]);
+    } else {
+      product.bundles = item.ranked_offers.map(toProductBundle);
+    }
   }
 
   return product;
 }
 
 /**
+ * Convert a static catalog JSON item to a UI Product.
+ * Used for recommendations where we load the raw JSON directly.
+ */
+function toProductFromStatic(item: StaticCatalogItem): Product {
+  const { rating, reviewCount } = mockRating();
+  return {
+    id: item.id,
+    title: item.title,
+    brand: item.brand,
+    category: item.category,
+    retailer: Retailer.Jarir,
+    price: item.price,
+    currency: item.currency,
+    rating,
+    reviewCount,
+    image_url: item.image_url,
+    attributes: item.attributes ?? {},
+    availability: item.availability,
+    delivery: item.delivery,
+  };
+}
+
+/**
  * Get products from a specific retailer's catalog (for recommendations).
  * Excludes a given product ID so the selected item isn't recommended to itself.
+ *
+ * Note: Jarir recs are loaded from static JSON, so they will not include
+ * ranked_offers or identity-gated content. This is acceptable for the demo.
  */
 export function getProductsByRetailer(retailer: Retailer, excludeId?: string, limit = 6): Product[] {
   if (retailer === Retailer.Jarir) {
-    // Jarir catalog is loaded via API normally, but we can import it directly for recs
+    // Static JSON — no ranked_offers or identity-gated content
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const jarirCatalog = require("./data/jarir-catalog.json") as CatalogItem[];
+    const jarirCatalog = require("./data/jarir-catalog.json") as StaticCatalogItem[];
     return jarirCatalog
-      .map(toProduct)
+      .map(toProductFromStatic)
       .filter((p) => p.id !== excludeId)
       .slice(0, limit);
   }
@@ -317,6 +386,10 @@ export function getProductsByRetailer(retailer: Retailer, excludeId?: string, li
 export interface FetchProductsOptions {
   query: string;
   limit?: number;
+  /** Send x-k2-mode: 1 header to enable K2 scenario matching */
+  k2Mode?: boolean;
+  /** Send x-k2-identity: 1 header to enable identity-gated offers */
+  hasIdentity?: boolean;
 }
 
 export interface FetchProductsResult {
@@ -335,7 +408,7 @@ export interface FetchProductsResult {
  * 4. Sorts by relevance with Jarir priority
  */
 export async function fetchProducts(options: FetchProductsOptions): Promise<FetchProductsResult> {
-  const { query, limit = 3 } = options;
+  const { query, limit = 3, k2Mode, hasIdentity } = options;
 
   // Extract search terms and product description from the query
   const searchTerms = extractSearchTerms(query);
@@ -344,12 +417,18 @@ export async function fetchProducts(options: FetchProductsOptions): Promise<Fetc
   // Check if query matches any scenario triggers (for boosting related products)
   const triggerMatch = matchTriggers(query);
 
-  // Build API URL with search term if available
-  const searchParam = searchTerms.length > 0 ? `&q=${encodeURIComponent(searchTerms.join(" "))}` : "";
+  // Send raw query to API for maximum scenario matching fidelity;
+  // extractSearchTerms is only used for client-side competitor scoring.
+  const searchParam = query ? `&q=${encodeURIComponent(query)}` : "";
   const url = `/api/products?limit=${limit}${searchParam}`;
 
+  // Build headers for K2 mode and identity
+  const headers: Record<string, string> = {};
+  if (k2Mode) headers["x-k2-mode"] = "1";
+  if (hasIdentity) headers["x-k2-identity"] = "1";
+
   try {
-    const response = await fetch(url);
+    const response = await fetch(url, Object.keys(headers).length > 0 ? { headers } : undefined);
     if (!response.ok) {
       throw new Error(`Product API returned ${response.status}`);
     }

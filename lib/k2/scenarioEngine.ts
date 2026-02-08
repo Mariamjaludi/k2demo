@@ -2,24 +2,10 @@ import { SCENARIOS, type Scenario } from "./scenarios";
 import type { Product, K2ResponseBody, ResponseItem, RankedOffer, Perk, PerkType, IncludedItemMeta, InternalPerk } from "./types";
 import { toPublicProduct, UCP_META } from "./types";
 import type { K2DebugLog } from "./debugStore";
+import { normalizeText } from "../text/normalize";
 
-// ── Query normalization ───────────────────────────────────────────────
-
-/** Strip Arabic tashkeel (diacritics) and tatweel (kashida) */
-const TASHKEEL_AND_TATWEEL = /[\u0610-\u061A\u0640\u064B-\u065F\u0670]/g;
-
-/** Common punctuation in both Latin and Arabic */
-const PUNCTUATION = /[؟،؛.,:;!?'"()\[\]{}\-_]/g;
-
-export function normalizeText(text: string): string {
-  return text
-    .toLowerCase()
-    .normalize("NFKC")
-    .replace(TASHKEEL_AND_TATWEEL, "")
-    .replace(PUNCTUATION, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+// Re-export so existing consumers (e.g. products route) do not break
+export { normalizeText } from "../text/normalize";
 
 // ── Trigger matching ──────────────────────────────────────────────────
 

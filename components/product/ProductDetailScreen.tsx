@@ -197,11 +197,12 @@ function BundledItemCard({ item }: { item: BundledItem }) {
 }
 
 function OffersSection({ bundle, bundles }: { bundle?: ProductBundle; bundles?: ProductBundle[] }) {
-  // Collect all included items from bundle(s)
+  // Show gifts from the top-ranked offer only (shopper can only accept one offer)
   const allBundles = bundles ?? (bundle ? [bundle] : []);
   if (allBundles.length === 0) return null;
 
-  const includedItems = allBundles.flatMap((b) => b.includedItems ?? []);
+  const topOffer = [...allBundles].sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999))[0];
+  const includedItems = topOffer ? topOffer.includedItems : [];
 
   if (includedItems.length === 0) return null;
 
@@ -217,10 +218,12 @@ function OffersSection({ bundle, bundles }: { bundle?: ProductBundle; bundles?: 
   );
 }
 
-/** Extract perks from bundle(s) */
+/** Extract perks from the top-ranked offer */
 function getPerks(bundle?: ProductBundle, bundles?: ProductBundle[]): { type: string; title: string }[] {
   const allBundles = bundles ?? (bundle ? [bundle] : []);
-  return allBundles.flatMap((b) => b.perks ?? []);
+  if (allBundles.length === 0) return [];
+  const topOffer = [...allBundles].sort((a, b) => (a.rank ?? 999) - (b.rank ?? 999))[0];
+  return topOffer ? topOffer.perks : [];
 }
 
 interface DetailCardProps {

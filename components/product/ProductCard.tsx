@@ -26,11 +26,13 @@ export interface BundledItem {
 }
 
 export interface ProductBundle {
+  offerId?: string;
+  rank?: number;
   title: string;
   subtitle: string;
   badges: string[];
-  includedItems?: BundledItem[];
-  perks?: { type: string; title: string }[];
+  includedItems: BundledItem[];
+  perks: { type: string; title: string }[];
 }
 
 export interface Product {
