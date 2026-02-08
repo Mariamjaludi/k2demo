@@ -9,7 +9,7 @@ export type Product = {
   category: string;
   /** SAR decimals */
   price: number;
-  currency: string;
+  currency: "SAR";
   margin_bps: number;
   /** SAR decimals — cost of goods sold */
   unit_cost: number;
@@ -32,7 +32,7 @@ export type PublicProduct = {
   brand: string;
   category: string;
   price: number;
-  currency: string;
+  currency: "SAR";
   image_url: string;
   attributes: Record<string, unknown>;
   availability: { in_stock: boolean; stock_level: number };
@@ -61,24 +61,28 @@ export const UCP_META = {
   capabilities: ["com.jarir.shopping.discovery"],
 } as const;
 
-export type UcpMeta = {
-  version: string;
-  capabilities: readonly string[];
-};
-
 // ── New scenario-based types ────────────────────────────────────────
 
+/** API-facing perk types — matches the contract sent to the shopping agent. */
 export type PerkType =
   | "pickup"
-  | "pickup_optional_paid"
   | "delivery"
   | "assembly"
   | "loyalty"
   | "raffle"
   | "event_invite";
 
+/** Internal perk types — includes values that are valid in scenario definitions but not exposed in the API. */
+export type InternalPerkType = PerkType | "pickup_optional_paid";
+
 export type Perk = {
   type: PerkType;
+  title: string;
+  details: Record<string, unknown>;
+};
+
+export type InternalPerk = {
+  type: InternalPerkType;
   title: string;
   details: Record<string, unknown>;
 };
@@ -87,15 +91,19 @@ export type IncludedItemMeta = {
   sku_id: string;
   title: string;
   brand: string;
+  /** SAR decimals — retail price of the included item */
   retail_value: number;
   currency: "SAR";
   image_url: string;
 };
 
 export type PriceBreakdown = {
+  /** SAR decimals — sum of primary item retail prices */
   items_subtotal: number;
+  /** SAR decimals — sum of included items' retail values */
   included_value: number;
   discount_total: 0;
+  /** SAR decimals — amount charged to buyer */
   total_price: number;
   currency: "SAR";
 };
@@ -106,26 +114,43 @@ export type OfferUI = {
   badges: string[];
 };
 
+/**
+ * Internal offer shape — used only within scenario engine internals.
+ * NOT part of the API response contract.
+ */
 export type ItemOffer = {
+  included_items: IncludedItemMeta[];
+  perks: InternalPerk[];
+  price_breakdown: PriceBreakdown;
+  ui: OfferUI;
+};
+
+/**
+ * A ranked offer attached to a single item.
+ *
+ * IMPORTANT: This type is part of the API response contract sent to the
+ * shopping agent. It must NEVER contain reasoning, confidence,
+ * confidence_explanation, economics, or KPI metadata.
+ */
+export type RankedOffer = {
+  offer_id: string;
+  rank: number;
+  ui: OfferUI;
   included_items: IncludedItemMeta[];
   perks: Perk[];
   price_breakdown: PriceBreakdown;
-  ui: OfferUI;
 };
 
 export type ResponseItem = PublicProduct & {
   item_id: string;
   rank: number;
-  /** Single offer for this item (mutually exclusive with bundles) */
-  offer?: ItemOffer;
-  /** Multiple bundle options for the same product (used when same SKU appears multiple times with different offers) */
-  bundles?: ItemOffer[];
+  ranked_offers?: RankedOffer[];
 };
 
 export type K2ResponseBody = {
   ucp: { version: string; capabilities: readonly string[] };
   query: string;
   items: ResponseItem[];
-  recommended_item_id: string | null;
+  recommended: { item_id: string; offer_id: string | null } | null;
   correlation_id: string;
 };
