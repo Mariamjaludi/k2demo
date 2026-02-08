@@ -4,12 +4,29 @@ export type K2DebugLog = {
   detected_scenario: string | null;
   candidate_pool: { sku_id: string; title: string; in_stock: boolean }[];
   ranking_rationale: string;
-  applied_offers: { sku_id: string; rank: number; offer_summary: string }[];
-  oos_removals: { sku_id: string; type: "item" | "included_item"; reason: string }[];
+  applied_offers: {
+    sku_id: string;
+    offer_id: string;
+    item_rank: number;
+    offer_rank: number;
+    offer_summary: string;
+    reasoning: string;
+    confidence: number;
+    confidence_explanation: string;
+    kpi_numbers: Record<string, number>;
+    data_sources: Array<{ name: string; freshness_minutes: number }>;
+    gated_without_identity: boolean;
+  }[];
+  item_removals: {
+    sku_id: string;
+    type: "item" | "included_item";
+    reason_type: "oos" | "missing" | "policy";
+    reason: string;
+  }[];
   kpi_deltas: { inventory_risk_delta: number; attach_rate: number; bundle_value_added: number };
   guardrail_checks: { rule: string; passed: boolean; detail: string }[];
-  confidence_scores: { sku_id: string; rank: number; confidence: number }[];
   narrative: string;
+  response_payload_sent: unknown;
 };
 
 const MAX_ENTRIES = 50;
