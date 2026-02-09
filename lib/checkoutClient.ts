@@ -9,6 +9,8 @@
 export interface CreateCheckoutParams {
   productId: string;
   quantity: number;
+  offerId?: string;
+  correlationId?: string;
 }
 
 export interface CreateCheckoutResult {
@@ -20,9 +22,13 @@ export async function createCheckoutSession(
   params: CreateCheckoutParams
 ): Promise<CreateCheckoutResult | null> {
   try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (params.correlationId) headers["x-k2-correlation-id"] = params.correlationId;
+    if (params.offerId) headers["x-k2-offer-id"] = params.offerId;
+
     const res = await fetch("/api/checkout-sessions", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers,
       body: JSON.stringify({
         items: [{ product_id: params.productId, quantity: params.quantity }],
       }),

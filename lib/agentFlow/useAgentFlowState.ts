@@ -20,6 +20,7 @@ const initialState: AgentFlowState = {
   messages: [],
   resultsScrollOffset: 0,
   productsById: {},
+  correlationIdByProductId: {},
   selectedProductId: null,
   quantity: 1,
   customer: null,
@@ -69,11 +70,21 @@ function agentFlowReducer(
 
     // ─── Results Actions ──────────────────────────────────────────────
     case "SET_PRODUCTS": {
-      const { products, productDescription } = action.payload;
+      const { products, productDescription, correlationId } = action.payload;
       // Merge new products into cache
       const newProductsById = { ...state.productsById };
       for (const product of products) {
         newProductsById[product.id] = product;
+      }
+      // Map product IDs to the K2 correlation_id from this fetch.
+      // Clear stale mappings for incoming products when no correlationId.
+      const newCorrelationIds = { ...state.correlationIdByProductId };
+      for (const product of products) {
+        if (correlationId) {
+          newCorrelationIds[product.id] = correlationId;
+        } else {
+          delete newCorrelationIds[product.id];
+        }
       }
       // Add an agent message carrying the product results into the conversation
       const productMessage: ChatMessage = {
@@ -87,6 +98,7 @@ function agentFlowReducer(
       return {
         ...state,
         productsById: newProductsById,
+        correlationIdByProductId: newCorrelationIds,
         resultsScrollOffset: 0,
         selectedProductId: null,
         messages: [...state.messages, productMessage],
@@ -177,7 +189,7 @@ export interface AgentFlowContext {
   addAgentMessage: (content: string) => void;
 
   // Results actions
-  setProducts: (products: Product[], productDescription: string) => void;
+  setProducts: (products: Product[], productDescription: string, correlationId?: string) => void;
   saveScrollOffset: (offset: number) => void;
   // Navigation actions
   selectProduct: (productId: string) => void;
@@ -270,8 +282,8 @@ export function useAgentFlowState(): AgentFlowContext {
     dispatch({ type: "ADD_MESSAGE", payload: message });
   }, []);
 
-  const setProducts = useCallback((products: Product[], productDescription: string) => {
-    dispatch({ type: "SET_PRODUCTS", payload: { products, productDescription } });
+  const setProducts = useCallback((products: Product[], productDescription: string, correlationId?: string) => {
+    dispatch({ type: "SET_PRODUCTS", payload: { products, productDescription, correlationId } });
   }, []);
 
   const saveScrollOffset = useCallback((offset: number) => {

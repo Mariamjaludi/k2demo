@@ -17,9 +17,9 @@ export async function POST(
   request: NextRequest,
   context: { params: Promise<{ id: string }> }
 ) {
-  const correlationId = createCorrelationId();
   const { id } = await context.params;
   const session = getSession(id);
+  const correlationId = session?.k2?.correlation_id ?? createCorrelationId();
 
   merchantEmitLog({
     category: "agent",
@@ -158,6 +158,22 @@ export async function POST(
     correlationId,
     payload: completeBody as unknown as Json,
   });
+
+  if (updatedSession.k2) {
+    merchantEmitLog({
+      category: "k2",
+      event: "k2.checkout.completed",
+      message: `K2 sale won — order ${orderId}, offer ${updatedSession.k2.offer_id}`,
+      correlationId: updatedSession.k2.correlation_id,
+      payload: {
+        order_id: orderId,
+        session_id: id,
+        offer_id: updatedSession.k2.offer_id,
+        k2_correlation_id: updatedSession.k2.correlation_id,
+        totals: updatedSession.totals,
+      },
+    });
+  }
 
   return noStoreJson(completeBody, 202);
 }

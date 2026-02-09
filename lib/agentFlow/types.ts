@@ -76,6 +76,8 @@ export interface AgentFlowState {
   resultsScrollOffset: number;
   /** Cache of all products seen (including competitors), keyed by id */
   productsById: Record<string, Product>;
+  /** Maps product ID → K2 correlation_id from the fetch that returned it */
+  correlationIdByProductId: Record<string, string>;
 
   // Selection
   selectedProductId: string | null;
@@ -100,7 +102,7 @@ export type AgentFlowAction =
   | { type: "ADD_MESSAGE"; payload: ChatMessage }
 
   // Results actions
-  | { type: "SET_PRODUCTS"; payload: { products: Product[]; productDescription: string } }
+  | { type: "SET_PRODUCTS"; payload: { products: Product[]; productDescription: string; correlationId?: string } }
   | { type: "SAVE_SCROLL_OFFSET"; payload: number }
 
   // Navigation actions

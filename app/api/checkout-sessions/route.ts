@@ -6,7 +6,9 @@ import { merchantEmitLog, createCorrelationId } from "@/lib/demoLogs/merchantCon
 import type { Json } from "@/lib/demoLogs/types";
 
 type RequestItem = { product_id: string; quantity: number };
-type CreateCheckoutRequest = { items: RequestItem[] };
+type CreateCheckoutRequest = {
+  items: RequestItem[];
+};
 
 const VAT_RATE = 0.15;
 const MAX_ITEMS = 50;
@@ -15,7 +17,7 @@ const MAX_ITEMS = 50;
 const catalogById = new Map(catalog.map(p => [p.id, p]));
 
 export async function POST(request: NextRequest) {
-  const correlationId = createCorrelationId();
+  const requestCorrelationId = createCorrelationId();
   let body: CreateCheckoutRequest;
 
   try {
@@ -25,7 +27,7 @@ export async function POST(request: NextRequest) {
       category: "agent",
       event: "agent.checkout_sessions.create.request",
       message: "POST /api/checkout-sessions",
-      correlationId,
+      correlationId: requestCorrelationId,
       payload: { method: "POST", body: "(invalid JSON)" },
     });
     merchantEmitLog({
@@ -33,11 +35,18 @@ export async function POST(request: NextRequest) {
       event: "merchant.checkout_sessions.create.error",
       message: "400 Bad Request — Invalid JSON body",
       level: "error",
-      correlationId,
+      correlationId: requestCorrelationId,
       payload: { status: 400, error: "Invalid JSON body" },
     });
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
+
+  // K2 attribution: read from headers (set by the shopping agent client)
+  const k2CorrelationId = request.headers.get("x-k2-correlation-id") ?? undefined;
+  const k2OfferId = request.headers.get("x-k2-offer-id") ?? undefined;
+
+  // If the request carries a K2 correlation_id, use it so logs stay on the same thread
+  const correlationId = k2CorrelationId ?? requestCorrelationId;
 
   merchantEmitLog({
     category: "agent",
@@ -47,6 +56,9 @@ export async function POST(request: NextRequest) {
     payload: {
       method: "POST",
       items: body.items?.map((i) => ({ product_id: i.product_id, quantity: i.quantity })) ?? [],
+      ...(k2OfferId ? { offer_id: k2OfferId } : {}),
+      ...(k2CorrelationId ? { k2_correlation_id: k2CorrelationId } : {}),
+      request_correlation_id: requestCorrelationId,
     },
   });
 
@@ -148,12 +160,30 @@ export async function POST(request: NextRequest) {
     shipping: { address: null, fee: 0 },
     totals: { subtotal, vat, vat_rate: VAT_RATE, total },
     delivery: { promise: null, eta_minutes: null },
+    ...(k2OfferId && k2CorrelationId
+      ? { k2: { correlation_id: k2CorrelationId, offer_id: k2OfferId } }
+      : {}),
     created_at: now.toISOString(),
     expires_at: expiresAt.toISOString(),
     updated_at: now.toISOString(),
   };
 
   saveSession(session);
+
+  if (session.k2) {
+    merchantEmitLog({
+      category: "k2",
+      event: "k2.checkout.started",
+      message: `K2 checkout started — session ${session.id.slice(0, 8)}… offer ${session.k2.offer_id}`,
+      correlationId: session.k2.correlation_id,
+      payload: {
+        session_id: session.id,
+        offer_id: session.k2.offer_id,
+        k2_correlation_id: session.k2.correlation_id,
+        line_items: lineItems.map((li) => ({ product_id: li.product_id, quantity: li.quantity })),
+      },
+    });
+  }
 
   const responseBody = errors.length
   ? { session, warnings: errors, missing_fields: ["customer.email", "shipping.address"] }

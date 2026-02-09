@@ -3,7 +3,7 @@ import amazonCatalog from "./data/amazon-catalog.json";
 import noonCatalog from "./data/noon-catalog.json";
 import extraCatalog from "./data/extra-catalog.json";
 import { matchTriggers, productMatchesTrigger, type TriggerMatch } from "./triggerMatcher";
-import { normalizeText } from "./text/normalize";
+import { normalizeText } from "@/lib/text/normalize";
 
 const VALID_RETAILERS = new Set<string>(Object.values(Retailer));
 
@@ -325,12 +325,13 @@ function toProduct(item: CatalogItem): Product {
     delivery: item.delivery,
   };
 
-  // Convert ranked_offers from API to UI format
+  // Convert ranked_offers from API to UI format, sorted by rank
   if (item.ranked_offers && item.ranked_offers.length > 0) {
-    if (item.ranked_offers.length === 1) {
-      product.bundle = toProductBundle(item.ranked_offers[0]);
+    const sorted = [...item.ranked_offers].sort((a, b) => a.rank - b.rank);
+    if (sorted.length === 1) {
+      product.bundle = toProductBundle(sorted[0]);
     } else {
-      product.bundles = item.ranked_offers.map(toProductBundle);
+      product.bundles = sorted.map(toProductBundle);
     }
   }
 
@@ -397,6 +398,8 @@ export interface FetchProductsResult {
   searchTerms: string[];
   /** Clean product description for display (e.g., "paper", "macbook keyboard") */
   productDescription: string;
+  /** K2 correlation ID from the API response, if present */
+  correlationId?: string;
 }
 
 /**
@@ -434,6 +437,9 @@ export async function fetchProducts(options: FetchProductsOptions): Promise<Fetc
     }
     const data = await response.json();
 
+    // Capture K2 correlation ID from response
+    const correlationId: string | undefined = typeof data.correlation_id === "string" ? data.correlation_id : undefined;
+
     // Convert catalog items to Product
     const jarirProducts: Product[] = (data.items || []).map(toProduct);
 
@@ -454,6 +460,7 @@ export async function fetchProducts(options: FetchProductsOptions): Promise<Fetc
       products: taggedProducts,
       searchTerms,
       productDescription,
+      correlationId,
     };
   } catch (error) {
     console.error("Failed to fetch products:", error);

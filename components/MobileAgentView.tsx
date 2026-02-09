@@ -81,7 +81,7 @@ export function MobileAgentView() {
     }
 
     pendingFetchRef.current = null;
-    setProducts(result.products, result.productDescription);
+    setProducts(result.products, result.productDescription, result.correlationId);
   }, [setProducts]);
 
   // More products from the same retailer for the checkout modal
@@ -149,9 +149,15 @@ export function MobileAgentView() {
                 checkoutSessionIdRef.current = null;
                 checkoutSessionPromiseRef.current = null;
                 if (selectedProduct?.retailer === Retailer.Jarir) {
+                  // Bundles are pre-sorted by rank in toProduct; first entry is top-ranked
+                  const topBundle = selectedProduct.bundles?.[0] ?? selectedProduct.bundle;
+                  const offerId = topBundle?.offerId;
+                  const productCorrelationId = state.correlationIdByProductId[selectedProduct.id];
                   const promise = createCheckoutSession({
                     productId: selectedProduct.id,
                     quantity: state.quantity,
+                    offerId,
+                    correlationId: productCorrelationId,
                   }).then((result) => {
                     const sid = result?.sessionId ?? null;
                     if (sid) {

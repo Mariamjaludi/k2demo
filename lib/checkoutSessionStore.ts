@@ -55,6 +55,10 @@ export type CheckoutSession = {
   payment?: {
     method: string;
   };
+  k2?: {
+    correlation_id: string;
+    offer_id: string;
+  };
   created_at: string;
   expires_at: string;
   updated_at: string;
